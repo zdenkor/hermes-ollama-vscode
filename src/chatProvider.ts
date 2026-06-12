@@ -416,8 +416,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   }
 
   #send-btn {
-    background: var(--accent);
-    color: white;
+    background: #404040;
     border: none;
     width: 36px;
     height: 36px;
@@ -430,10 +429,15 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     justify-content: center;
     padding: 0;
     align-self: flex-end;
+    transition: background 0.2s;
   }
 
-  #send-btn:hover {
-    background: color-mix(in srgb, var(--accent) 85%, white);
+  #send-btn.active {
+    background: var(--accent);
+  }
+
+  #send-btn.active svg {
+    fill: white;
   }
 
   #send-btn:disabled {
@@ -444,7 +448,8 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   #send-btn svg {
     width: 18px;
     height: 18px;
-    fill: currentColor;
+    fill: #404040;
+    transition: fill 0.2s;
   }
 
   #cancel-btn {
@@ -467,7 +472,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     <textarea id="input" rows="1" placeholder="Ask Hermes..."></textarea>
     <button id="send-btn" title="Send">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        <path d="M12 4l-8 8h5v8h6v-8h5z"/>
       </svg>
     </button>
     <button id="cancel-btn">Cancel</button>
@@ -536,6 +541,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       const text = inputEl.value.trim();
       if (!text || thinking) return;
       inputEl.value = '';
+      sendBtn.classList.remove('active');
       vscode.postMessage({ type: 'send', text });
     }
 
@@ -544,6 +550,13 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         e.preventDefault();
         send();
       }
+    });
+
+    // Auto-resize textarea based on content
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px';
+      sendBtn.classList.toggle('active', inputEl.value.trim().length > 0);
     });
 
     sendBtn.addEventListener('click', send);
