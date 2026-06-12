@@ -7,11 +7,13 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   private sessionId?: string;
   private turnInProgress = false;
   private executable: string;
+  private outputChannel: vscode.OutputChannel;
 
-  constructor(private context: vscode.ExtensionContext) {
+  constructor(private context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
     this.executable = vscode.workspace
       .getConfiguration("hermes")
       .get<string>("executable") || "hermes";
+    this.outputChannel = outputChannel;
   }
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
@@ -82,19 +84,28 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ||
       process.cwd();
 
+    this.outputChannel.appendLine(`CWD: ${cwd}`);
+    this.outputChannel.appendLine(`Executable: ${this.executable}`);
+
     this.client = new AcpClient(this.executable);
     this.setupClientHandlers();
 
     this.postStatus("Starting Hermes...");
+    this.outputChannel.appendLine("Starting Hermes agent...");
+
+    this.client.start();
+    this.outputChannel.appendLine("Client started, waiting for initialize...");
 
     try {
       const init = await this.client.initialize();
+      this.outputChannel.appendLine(`Initialize response: ${JSON.stringify(init)}`);
       if (init.error) {
         this.postError(`Failed to initialize: ${init.error.message}`);
         return;
       }
 
       const session = await this.client.newSession(cwd);
+      this.outputChannel.appendLine(`Session response: ${JSON.stringify(session)}`);
       if (session.error) {
         this.postError(`Failed to create session: ${session.error.message}`);
         return;
@@ -106,6 +117,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       this.postStatus("");
       this.postMessage("system", `Hermes ready — session ${this.sessionId?.slice(0, 8)}...`);
     } catch (err: any) {
+      this.outputChannel.appendLine(`Connection error: ${err.message}`);
       this.postError(`Connection failed: ${err.message}`);
     }
   }
@@ -121,8 +133,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
 
     this.client.on("stderr", (text: string) => {
       // Log stderr to output channel for debugging
-      const log = vscode.window.createOutputChannel("Hermes", { log: true });
-      log.append(text);
+      this.outputChannel.appendLine("[stderr] " + text);
     });
 
     this.client.on("error", (err: Error) => {
