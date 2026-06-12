@@ -386,12 +386,16 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     border-top: 1px solid var(--border);
     padding: 6px 8px;
     gap: 6px;
+    resize: vertical;
+    overflow: auto;
+    min-height: 60px;
+    max-height: 300px;
   }
 
   #input {
     flex: 1;
-    background: var(--input-bg);
-    border: 1px solid var(--border);
+    background: transparent;
+    border: none;
     color: var(--fg);
     padding: 6px 10px;
     border-radius: 4px;
@@ -399,7 +403,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     font-size: inherit;
     resize: none;
     min-height: 28px;
-    max-height: 120px;
+    height: 100%;
     outline: none;
   }
 
@@ -415,16 +419,32 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     background: var(--accent);
     color: white;
     border: none;
-    padding: 6px 14px;
-    border-radius: 4px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     cursor: pointer;
     font-family: inherit;
     font-size: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    align-self: flex-end;
+  }
+
+  #send-btn:hover {
+    background: color-mix(in srgb, var(--accent) 85%, white);
   }
 
   #send-btn:disabled {
     opacity: 0.4;
     cursor: default;
+  }
+
+  #send-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
   }
 
   #cancel-btn {
@@ -445,7 +465,11 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   <div id="status"></div>
   <div id="input-area">
     <textarea id="input" rows="1" placeholder="Ask Hermes..."></textarea>
-    <button id="send-btn">Send</button>
+    <button id="send-btn" title="Send">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+      </svg>
+    </button>
     <button id="cancel-btn">Cancel</button>
   </div>
   <script>
