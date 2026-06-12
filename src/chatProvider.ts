@@ -62,6 +62,33 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     this.ensureAgent();
   }
 
+  async commandSessions(): Promise<void> {
+    if (!this.client) {
+      this.postError("Not connected to Hermes");
+      return;
+    }
+
+    try {
+      const result = await this.client.listSessions();
+      if (result.error) {
+        this.postError(`Failed to list sessions: ${result.error.message}`);
+        return;
+      }
+      // Send sessions to webview for display
+      this.postMessage("sessions", result.result || []);
+    } catch (err: any) {
+      this.postError(`Failed to list sessions: ${err.message}`);
+    }
+  }
+
+  async commandResumeSession(sessionId: string): Promise<void> {
+    if (this.turnInProgress) return;
+    this.stopAgent();
+    this.updateWebviewMessages([]);
+    this.postStatus(`Resuming session ${sessionId.slice(0, 8)}...`);
+    await this.ensureAgent(sessionId);
+  }
+
   private stopAgent(): void {
     if (this.client) {
       this.client.stop();
@@ -73,7 +100,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     this.setContext("hermes.turnInProgress", false);
   }
 
-  private async ensureAgent(): Promise<void> {
+  private async ensureAgent(resumeSessionId?: string): Promise<void> {
     if (this.client?.isRunning() && this.sessionId) return;
 
     this.stopAgent();
@@ -104,11 +131,29 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         return;
       }
 
-      const session = await this.client.newSession(cwd);
+      let session;
+      if (resumeSessionId) {
+        // Try to resume a specific session
+        session = await this.client.loadSession(resumeSessionId);
+      } else {
+        // Try to load the most recent session (auto-resume)
+        const sessions = await this.client.listSessions();
+        if (sessions.result && (sessions.result as any).sessions?.length > 0) {
+          const lastSession = (sessions.result as any).sessions[0];
+          session = await this.client.loadSession(lastSession.sessionId);
+        } else {
+          // No sessions to resume, create new
+          session = await this.client.newSession(cwd);
+        }
+      }
       this.outputChannel.appendLine(`Session response: ${JSON.stringify(session)}`);
       if (session.error) {
-        this.postError(`Failed to create session: ${session.error.message}`);
-        return;
+        // Fall back to creating new session
+        session = await this.client.newSession(cwd);
+        if (session.error) {
+          this.postError(`Failed to create session: ${session.error.message}`);
+          return;
+        }
       }
       if (session.result && typeof session.result === "object") {
         this.sessionId = (session.result as any).sessionId;
@@ -470,6 +515,11 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   <div id="status"></div>
   <div id="input-area">
     <textarea id="input" rows="1" placeholder="Ask Hermes..."></textarea>
+    <button id="sessions-btn" title="Sessions">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+      </svg>
+    </button>
     <button id="send-btn" title="Send">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
