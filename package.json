@@ -59,6 +59,11 @@
         "icon": "$(add)"
       },
       {
+        "command": "hermes.sessions",
+        "title": "Hermes: Sessions",
+        "icon": "$(history)"
+      },
+      {
         "command": "hermes.restartAgent",
         "title": "Hermes: Restart Agent",
         "icon": "$(debug-restart)"
@@ -72,14 +77,19 @@
           "group": "navigation@1"
         },
         {
-          "command": "hermes.cancel",
+          "command": "hermes.sessions",
           "when": "view == hermes-chat",
           "group": "navigation@2"
         },
         {
-          "command": "hermes.restartAgent",
+          "command": "hermes.cancel",
           "when": "view == hermes-chat",
           "group": "navigation@3"
+        },
+        {
+          "command": "hermes.restartAgent",
+          "when": "view == hermes-chat",
+          "group": "navigation@4"
         }
       ]
     },
