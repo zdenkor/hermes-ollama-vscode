@@ -472,8 +472,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     <textarea id="input" rows="1" placeholder="Ask Hermes..."></textarea>
     <button id="send-btn" title="Send">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-        <path d="M12 8v8M8 12l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
       </svg>
     </button>
     <button id="cancel-btn">Cancel</button>
