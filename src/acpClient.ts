@@ -31,12 +31,22 @@ export class AcpClient extends EventEmitter {
   start(cwd?: string): void {
     if (this.isRunning()) this.stop();
 
-    this.proc = cp.spawn(this.executable, ["acp", "--stdio"], {
-      cwd: cwd || undefined,
-      env: { ...process.env },
-      stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true,
-    });
+    try {
+      this.proc = cp.spawn(this.executable, ["acp", "--stdio"], {
+        cwd: cwd || undefined,
+        env: { ...process.env },
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
+      });
+    } catch (err) {
+      this.emit("error", new Error(`Failed to spawn process: ${err}`));
+      return;
+    }
+
+    if (!this.proc.stdin) {
+      this.emit("error", new Error("Failed to create stdin stream"));
+      return;
+    }
 
     this.proc.stdout!.on("data", (data: Buffer) => {
       this.buffer += data.toString("utf8");
@@ -99,7 +109,12 @@ export class AcpClient extends EventEmitter {
   private sendRequest(method: string, params: Record<string, unknown>): Promise<AcpResponse> {
     const id = this.nextId++;
     const msg = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
-    this.proc.stdin!.write(msg);
+
+    if (!this.proc || !this.proc.stdin) {
+      return Promise.reject(new Error("Process not running"));
+    }
+
+    this.proc.stdin.write(msg);
 
     return new Promise((resolve) => {
       this.pending.set(id, resolve);
@@ -108,7 +123,12 @@ export class AcpClient extends EventEmitter {
 
   private sendNotification(method: string, params: Record<string, unknown>): void {
     const msg = JSON.stringify({ jsonrpc: "2.0", method, params }) + "\n";
-    this.proc.stdin!.write(msg);
+
+    if (!this.proc || !this.proc.stdin) {
+      return;
+    }
+
+    this.proc.stdin.write(msg);
   }
 
   private handleLine(line: string): void {
