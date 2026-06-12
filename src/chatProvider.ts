@@ -134,13 +134,13 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       let session;
       if (resumeSessionId) {
         // Try to resume a specific session
-        session = await this.client.loadSession(resumeSessionId);
+        session = await this.client.loadSession(resumeSessionId, cwd);
       } else {
         // Try to load the most recent session (auto-resume)
         const sessions = await this.client.listSessions();
         if (sessions.result && (sessions.result as any).sessions?.length > 0) {
           const lastSession = (sessions.result as any).sessions[0];
-          session = await this.client.loadSession(lastSession.sessionId);
+          session = await this.client.loadSession(lastSession.sessionId, cwd);
         } else {
           // No sessions to resume, create new
           session = await this.client.newSession(cwd);
