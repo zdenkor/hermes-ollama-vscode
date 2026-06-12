@@ -31,19 +31,25 @@ export class AcpClient extends EventEmitter {
   start(cwd?: string): void {
     if (this.isRunning()) this.stop();
 
+    console.log(`[AcpClient] Starting process: ${this.executable} with args ["acp", "--stdio"], cwd=${cwd}`);
+
     try {
-      this.proc = cp.spawn(this.executable, ["acp", "--stdio"], {
+      this.proc = cp.spawn(this.executable, ["acp"], {
         cwd: cwd || undefined,
         env: { ...process.env },
         stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true,
       });
     } catch (err) {
+      console.log(`[AcpClient] Spawn failed: ${err}`);
       this.emit("error", new Error(`Failed to spawn process: ${err}`));
       return;
     }
 
+    console.log(`[AcpClient] Process spawned, pid=${this.proc.pid}, stdin=${!!this.proc.stdin}`);
+
     if (!this.proc.stdin) {
+      console.log(`[AcpClient] No stdin available`);
       this.emit("error", new Error("Failed to create stdin stream"));
       return;
     }
@@ -110,7 +116,10 @@ export class AcpClient extends EventEmitter {
     const id = this.nextId++;
     const msg = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
 
+    console.log(`[AcpClient] sendRequest: method=${method}, proc=${!!this.proc}, stdin=${this.proc?.stdin ? 'yes' : 'no'}`);
+
     if (!this.proc || !this.proc.stdin) {
+      console.log(`[AcpClient] Process not running - proc=${!!this.proc}, stdin=${this.proc?.stdin ? 'yes' : 'no'}`);
       return Promise.reject(new Error("Process not running"));
     }
 

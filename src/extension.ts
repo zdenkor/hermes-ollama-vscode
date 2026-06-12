@@ -2,7 +2,12 @@ import * as vscode from "vscode";
 import { HermesChatProvider } from "./chatProvider";
 
 export function activate(context: vscode.ExtensionContext) {
-  const provider = new HermesChatProvider(context);
+  const outputChannel = vscode.window.createOutputChannel("Hermes");
+  context.subscriptions.push(outputChannel);
+
+  outputChannel.appendLine("Hermes extension activated");
+
+  const provider = new HermesChatProvider(context, outputChannel);
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider("hermes-chat", provider, {
