@@ -1,0 +1,76 @@
+{
+  "name": "hermes-vscode",
+  "displayName": "Hermes Chat",
+  "description": "Chat with Hermes Agent in VS Code. Uses ACP protocol — full agent with tools, memory, and skills.",
+  "version": "0.1.0",
+  "publisher": "hermes",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["AI", "Chat"],
+  "keywords": ["hermes", "agent", "ai", "acp", "ollama"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [{
+        "id": "hermes",
+        "title": "Hermes",
+        "icon": "media/icon.svg"
+      }]
+    },
+    "views": {
+      "hermes": [{
+        "id": "hermes-chat",
+        "name": "Chat",
+        "type": "webview"
+      }]
+    },
+    "commands": [
+      { "command": "hermes.send", "title": "Hermes: Send Prompt" },
+      { "command": "hermes.cancel", "title": "Hermes: Cancel Turn", "icon": "$(debug-stop)" },
+      { "command": "hermes.newSession", "title": "Hermes: New Session", "icon": "$(add)" },
+      { "command": "hermes.restartAgent", "title": "Hermes: Restart Agent", "icon": "$(debug-restart)" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "hermes.newSession", "when": "view == hermes-chat", "group": "navigation@1" },
+        { "command": "hermes.cancel", "when": "view == hermes-chat", "group": "navigation@2" },
+        { "command": "hermes.restartAgent", "when": "view == hermes-chat", "group": "navigation@3" }
+      ]
+    },
+    "keybindings": [
+      { "command": "hermes.cancel", "key": "escape", "when": "hermes.turnInProgress" }
+    ],
+    "configuration": {
+      "title": "Hermes",
+      "properties": {
+        "hermes.executable": {
+          "type": "string",
+          "default": "C:/Users/gin/AppData/Local/hermes/hermes-agent/venv/Scripts/hermes.exe",
+          "description": "Path to the hermes executable"
+        },
+        "hermes.defaultCwd": {
+          "type": "string",
+          "default": "",
+          "description": "Default working directory for agent sessions"
+        },
+        "hermes.logTraffic": {
+          "type": "boolean",
+          "default": true,
+          "description": "Log ACP protocol traffic to output"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs --production",
+    "watch": "node esbuild.mjs --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.5.0"
+  }
+}
