@@ -1,5 +1,9 @@
 # Release Notes
 
+## v0.4.2
+- Fix sessionId from loadSession (use passed sessionId, not response)
+- Clean up README.md, add slash commands documentation
+
 ## v0.4.1
 - Fix ACP methods: session/list and session/load (not listSessions/loadSession)
 - Sessions list now uses QuickPick instead of webview message (which had no handler)
