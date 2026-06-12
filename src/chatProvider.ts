@@ -148,14 +148,17 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       }
 
       let session;
+      let loadedSessionId: string | undefined;
       if (resumeSessionId) {
         // Try to resume a specific session
+        loadedSessionId = resumeSessionId;
         session = await this.client.loadSession(resumeSessionId, cwd);
       } else {
         // Try to load the most recent session (auto-resume)
         const sessions = await this.client.listSessions();
         if (sessions.result && (sessions.result as any).sessions?.length > 0) {
           const lastSession = (sessions.result as any).sessions[0];
+          loadedSessionId = lastSession.sessionId;
           session = await this.client.loadSession(lastSession.sessionId, cwd);
         } else {
           // No sessions to resume, create new
@@ -171,9 +174,8 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
           return;
         }
       }
-      if (session.result && typeof session.result === "object") {
-        this.sessionId = (session.result as any).sessionId;
-      }
+      // Use the loaded session ID if available, otherwise get from result
+      this.sessionId = loadedSessionId || (session.result && typeof session.result === "object" ? (session.result as any).sessionId : undefined);
 
       this.postStatus("");
       this.postMessage("system", `Hermes ready — session ${this.sessionId?.slice(0, 8)}...`);
