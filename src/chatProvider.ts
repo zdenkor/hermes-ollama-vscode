@@ -74,8 +74,24 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         this.postError(`Failed to list sessions: ${result.error.message}`);
         return;
       }
-      // Send sessions to webview for display
-      this.postMessage("sessions", result.result || []);
+      const data = result.result as any;
+      const sessions = data?.sessions || [];
+      if (sessions.length === 0) {
+        vscode.window.showInformationMessage("No sessions found");
+        return;
+      }
+      const items = sessions.map((s: any) => ({
+        label: s.title || "Untitled",
+        description: s.sessionId?.slice(0, 8),
+        detail: s.cwd,
+        sessionId: s.sessionId,
+      }));
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: "Select a session to resume",
+      });
+      if (selected) {
+        await this.commandResumeSession(selected.sessionId);
+      }
     } catch (err: any) {
       this.postError(`Failed to list sessions: ${err.message}`);
     }
