@@ -1,5 +1,8 @@
 # Release Notes
 
+## v0.4.3
+- Fix: add `useDefineForClassFields: false` to tsconfig.json to prevent class field crash
+
 ## v0.4.2
 - Fix sessionId from loadSession (use passed sessionId, not response)
 - Clean up README.md, add slash commands documentation
