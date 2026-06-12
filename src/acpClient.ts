@@ -113,11 +113,11 @@ export class AcpClient extends EventEmitter {
   }
 
   async listSessions(): Promise<AcpResponse> {
-    return this.sendRequest("session/list", {});
+    return this.sendRequest("list_sessions", {});
   }
 
   async loadSession(sessionId: string): Promise<AcpResponse> {
-    return this.sendRequest("session/load", { sessionId });
+    return this.sendRequest("load_session", { sessionId });
   }
 
   private sendRequest(method: string, params: Record<string, unknown>): Promise<AcpResponse> {
