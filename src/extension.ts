@@ -17,6 +17,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("hermes.cancel", () => provider.commandCancel()),
     vscode.commands.registerCommand("hermes.newSession", () => provider.commandNewSession()),
     vscode.commands.registerCommand("hermes.restartAgent", () => provider.commandRestartAgent()),
+    vscode.commands.registerCommand("hermes.sessions", () => provider.commandSessions()),
+    vscode.commands.registerCommand("hermes.resumeSession", (sessionId: string) => provider.commandResumeSession(sessionId)),
   );
 }
 

@@ -112,6 +112,14 @@ export class AcpClient extends EventEmitter {
     this.sendNotification("session/cancel", { sessionId });
   }
 
+  async listSessions(): Promise<AcpResponse> {
+    return this.sendRequest("session/list", {});
+  }
+
+  async loadSession(sessionId: string): Promise<AcpResponse> {
+    return this.sendRequest("session/load", { sessionId });
+  }
+
   private sendRequest(method: string, params: Record<string, unknown>): Promise<AcpResponse> {
     const id = this.nextId++;
     const msg = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
