@@ -1,5 +1,10 @@
 # Release Notes
 
+## v0.4.1
+- Fix ACP methods: session/list and session/load (not listSessions/loadSession)
+- Sessions list now uses QuickPick instead of webview message (which had no handler)
+- Pass cwd parameter when loading a session
+
 ## v0.4.0
 - Add session management: auto-resume last session on startup
 - Add sessions list command (hermes.sessions) 
