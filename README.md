@@ -56,6 +56,7 @@ Log ACP protocol traffic to the output panel for debugging.
 3. Type your message and press Enter to send
 4. Use the toolbar buttons to:
    - **+** - Start a new session
+   - **Sessions** - List and resume previous sessions
    - **Cancel** - Cancel the current turn
    - **Restart** - Restart the Hermes agent
 
@@ -65,12 +66,28 @@ Log ACP protocol traffic to the output panel for debugging.
 - `Shift+Enter` - New line in message
 - `Escape` - Cancel current turn (when active)
 
+## Slash Commands
+
+Hermes supports these slash commands in chat:
+
+| Command | Description |
+|---------|-------------|
+| `/title [name]` | Set or show session title |
+| `/model [name]` | Switch or show current model |
+| `/mode [name]` | Switch or show agent mode |
+| `/context` | Show current context/session info |
+| `/tokens` | Show token usage for session |
+| `/clear` | Clear conversation history |
+| `/help` | Show available commands |
+
+Use `/title My Project` to name your session - the title persists across sessions.
+
 ## Troubleshooting
 
 ### "Connection failed" error
 
 1. Make sure Hermes is installed and working: Run `hermes acp --check` in a terminal
-2. If first time, configure Hermes: Run `hermes setup --portal` or `hermes model` to set up a provider
+2. If first time, configure Hermes: Run `hermes setup` to set up a provider
 3. Check the Output panel (View → Output → Hermes) for detailed logs
 
 ### Extension not activating
