@@ -685,8 +685,8 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   #send-btn {
     background: #404040;
     border: none;
-    width: 36px;
-    height: 36px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     cursor: pointer;
     font-family: inherit;
@@ -704,8 +704,8 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   }
 
   #send-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 14px;
+    height: 14px;
     color: #808080;
     transition: color 0.2s;
   }
