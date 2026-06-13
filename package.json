@@ -145,8 +145,8 @@
         },
         "hermes.apiServerKey": {
           "type": "string",
-          "default": "change-me-local-dev",
-          "description": "API server bearer token"
+          "default": "",
+          "description": "API server bearer token (set in User settings, not workspace)"
         }
       }
     }
