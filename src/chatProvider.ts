@@ -128,16 +128,37 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     try {
       const res = await this.client.prompt(this.sessionId, "/modellist");
       const output = (res.result as any)?.output || "";
-      const lines = output.split("\n").filter((l: string) => l.trim());
-      const models = lines.filter((l: string) => !l.includes("Available") && !l.includes("---") && !l.includes("Model") && !l.includes("✓")).map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+      
+      // Parse model list from output
+      // Format: "- model-name *(current)*" or "- model-name"
+      const models: { label: string; description: string; picked?: boolean }[] = [];
+      const lines = output.split("\n");
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("- ")) {
+          // Extract model name from "- model-name *(current)*"
+          let modelName = trimmed.substring(2).trim();
+          const currentMarker = "*(current)*";
+          const isCurrent = modelName.includes(currentMarker);
+          modelName = modelName.replace(currentMarker, "").trim();
+          
+          models.push({
+            label: modelName,
+            description: isCurrent ? "Current" : "",
+            picked: isCurrent,
+          });
+        }
+      }
       
       if (models.length === 0) {
         this.postError("No models found");
         return;
       }
       
-      const selected = await vscode.window.showQuickPick(models.map(m => ({ label: m })), {
+      const selected = await vscode.window.showQuickPick(models, {
         placeHolder: "Select a model",
+        canPickMany: false,
       });
       
       if (selected) {
@@ -469,13 +490,20 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 10px;
-    font-size: 0.85em;
-    color: color-mix(in srgb, var(--fg) 50%, transparent);
+    padding: 8px 12px;
+    font-size: 0.9em;
+    color: color-mix(in srgb, var(--fg) 60%, transparent);
+    background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    border-radius: 6px;
+    margin: 4px 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
   }
 
   .thinking .dot {
-    width: 6px; height: 6px;
+    width: 8px; height: 8px;
     background: var(--accent);
     border-radius: 50%;
     animation: pulse 0.8s ease-in-out infinite;
@@ -484,8 +512,8 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   .thinking .dot:nth-child(3) { animation-delay: 0.4s; }
 
   @keyframes pulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 1; }
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
   }
 
   #status {
@@ -647,6 +675,8 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         el.id = 'thinking-indicator';
         el.innerHTML = '<span>Hermes is thinking</span><span class="dot"></span><span class="dot"></span><span class="dot"></span>';
         messagesEl.appendChild(el);
+        // Scroll to ensure thinking indicator is visible
+        el.scrollIntoView({ behavior: 'smooth', block: 'end' });
         scrollBottom();
       } else {
         const el = document.getElementById('thinking-indicator');
