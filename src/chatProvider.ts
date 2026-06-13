@@ -683,7 +683,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   }
 
   #send-btn {
-    background: var(--accent);
+    background: #404040;
     border: none;
     width: 36px;
     height: 36px;
@@ -704,10 +704,14 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   }
 
   #send-btn svg {
-    width: 18px;
-    height: 18px;
-    fill: white;
+    width: 20px;
+    height: 20px;
+    fill: #808080;
     transition: fill 0.2s;
+  }
+
+  #send-btn.active svg {
+    fill: white;
   }
 
   #send-btn:disabled {
@@ -735,7 +739,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     <textarea id="input" rows="1" placeholder="Ask Hermes..."></textarea>
     <button id="send-btn" title="Send">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 4l-8 8h5v8h6v-8h5z"/>
+        <path d="M12 4l-5 5h3v9h4v-9h3z"/>
       </svg>
     </button>
     <button id="cancel-btn">Cancel</button>
@@ -848,6 +852,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     inputEl.addEventListener('input', () => {
       inputEl.style.height = 'auto';
       inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px';
+      sendBtn.classList.toggle('active', inputEl.value.trim().length > 0);
     });
 
     sendBtn.addEventListener('click', send);
