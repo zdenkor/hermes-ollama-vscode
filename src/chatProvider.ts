@@ -130,7 +130,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     try {
       // Try to fetch from API server first
       const apiUrl = vscode.workspace.getConfiguration("hermes").get<string>("apiServerUrl", "http://127.0.0.1:8642");
-      const apiKey = vscode.workspace.getConfiguration("hermes").get<string>("apiServerKey", "change-me-local-dev");
+      const apiKey = vscode.workspace.getConfiguration("hermes").get<string>("apiServerKey", "");
       
       let models: { label: string; description: string; picked?: boolean }[] = [];
       
@@ -182,6 +182,123 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       }
     } catch (e: any) {
       this.postError(`Failed: ${e.message}`);
+    }
+  }
+
+  async commandSetupWizard(): Promise<void> {
+    const items: vscode.QuickPickItem[] = [
+      {
+        label: "$(check) Check Connection",
+        description: "Test if Hermes agent is running",
+        detail: "Verifies the executable path and tries to connect",
+      },
+      {
+        label: "$(gear) Configure API Server",
+        description: "Set up API server for model discovery",
+        detail: "Enable API_SERVER_ENABLED in ~/.hermes/.env",
+      },
+      {
+        label: "$(list-flat) Set Model List",
+        description: "Configure available models manually",
+        detail: "Edit hermes.modelList setting",
+      },
+      {
+        label: "$(terminal) Open Hermes Terminal",
+        description: "Open integrated terminal to run Hermes commands",
+        detail: "Useful for starting gateway or checking status",
+      },
+      {
+        label: "$(question) Help / Documentation",
+        description: "Open Hermes documentation",
+        detail: "https://hermes-agent.nousresearch.com/docs/",
+      },
+    ];
+    
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: "Hermes Setup Wizard - Select an action",
+      title: "Hermes Setup Wizard",
+    });
+    
+    if (!selected) return;
+    
+    switch (selected.label) {
+      case "$(check) Check Connection":
+        await this.checkConnection();
+        break;
+      case "$(gear) Configure API Server":
+        await this.configureApiServer();
+        break;
+      case "$(list-flat) Set Model List":
+        await this.configureModelList();
+        break;
+      case "$(terminal) Open Hermes Terminal":
+        vscode.commands.executeCommand("workbench.action.terminal.new");
+        break;
+      case "$(question) Help / Documentation":
+        vscode.env.openExternal(vscode.Uri.parse("https://hermes-agent.nousresearch.com/docs/"));
+        break;
+    }
+  }
+
+  private async checkConnection(): Promise<void> {
+    this.postStatus("Checking connection...");
+    try {
+      await this.ensureAgent();
+      if (this.client?.isRunning()) {
+        vscode.window.showInformationMessage("Hermes is connected and running!");
+      } else {
+        vscode.window.showWarningMessage("Hermes is not running. Check the executable path in settings.");
+      }
+    } catch (e: any) {
+      vscode.window.showErrorMessage(`Connection failed: ${e.message}`);
+    }
+  }
+
+  private async configureApiServer(): Promise<void> {
+    const action = await vscode.window.showQuickPick([
+      { label: "Start API Server", description: "Run: hermes gateway" },
+      { label: "Configure .env", description: "Add API_SERVER_ENABLED=true" },
+      { label: "Set API Key", description: "Configure hermes.apiServerKey" },
+    ], { placeHolder: "API Server Configuration" });
+    
+    if (!action) return;
+    
+    if (action.label === "Start API Server") {
+      const terminal = vscode.window.createTerminal("Hermes Gateway");
+      terminal.sendText("hermes gateway");
+      terminal.show();
+      vscode.window.showInformationMessage("API server starting on http://127.0.0.1:8642");
+    } else if (action.label === "Configure .env") {
+      const homeDir = process.env.USERPROFILE || process.env.HOME || "";
+      const envPath = vscode.Uri.file(`${homeDir}/.hermes/.env`);
+      try {
+        await vscode.workspace.fs.stat(envPath);
+        vscode.window.showTextDocument(envPath);
+      } catch {
+        vscode.window.showWarningMessage("~/.hermes/.env not found. Run 'hermes setup' first.");
+      }
+    } else if (action.label === "Set API Key") {
+      const key = await vscode.window.showInputBox({
+        prompt: "Enter your API server key",
+        password: true,
+      });
+      if (key) {
+        await vscode.workspace.getConfiguration("hermes").update("apiServerKey", key, true);
+        vscode.window.showInformationMessage("API key saved to User settings");
+      }
+    }
+  }
+
+  private async configureModelList(): Promise<void> {
+    const current = vscode.workspace.getConfiguration("hermes").get<string>("modelList", "");
+    const models = await vscode.window.showInputBox({
+      prompt: "Enter comma-separated model list",
+      value: current,
+      placeHolder: "deepseek-v4-pro:cloud,llama3.2:latest,qwen2.5:latest",
+    });
+    if (models !== undefined) {
+      await vscode.workspace.getConfiguration("hermes").update("modelList", models, true);
+      vscode.window.showInformationMessage("Model list updated");
     }
   }
 

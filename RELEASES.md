@@ -1,5 +1,13 @@
 # Release Notes
 
+## v0.5.0
+- Add Setup Wizard (gear icon) for configuration helper
+- Add API server integration for real-time model discovery
+- Add `hermes.apiServerUrl` and `hermes.apiServerKey` settings
+- Add model chooser icon (circuit-board) in toolbar
+- Improve README with setup instructions and troubleshooting
+- Fix model list parsing for pipe-separated formats
+
 ## v0.4.8
 - Add hermes.modelList setting for available models
 
