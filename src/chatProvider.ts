@@ -683,7 +683,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   }
 
   #send-btn {
-    background: #404040;
+    background: var(--accent);
     border: none;
     width: 36px;
     height: 36px;
@@ -703,20 +703,16 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     background: var(--accent);
   }
 
-  #send-btn.active svg {
+  #send-btn svg {
+    width: 18px;
+    height: 18px;
     fill: white;
+    transition: fill 0.2s;
   }
 
   #send-btn:disabled {
     opacity: 0.4;
     cursor: default;
-  }
-
-  #send-btn svg {
-    width: 18px;
-    height: 18px;
-    fill: #404040;
-    transition: fill 0.2s;
   }
 
   #cancel-btn {
@@ -817,7 +813,6 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       }
       inputEl.value = '';
       savedInput = '';
-      sendBtn.classList.remove('active');
       vscode.postMessage({ type: 'send', text });
     }
 
@@ -853,7 +848,6 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     inputEl.addEventListener('input', () => {
       inputEl.style.height = 'auto';
       inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px';
-      sendBtn.classList.toggle('active', inputEl.value.trim().length > 0);
     });
 
     sendBtn.addEventListener('click', send);
