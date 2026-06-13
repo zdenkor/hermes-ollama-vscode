@@ -8,8 +8,6 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   private turnInProgress = false;
   private executable: string;
   private outputChannel: vscode.OutputChannel;
-  private modelListCollector: string = "";
-  private isCollectingModelList = false;
 
   constructor(private context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
     this.executable = vscode.workspace
@@ -127,85 +125,42 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       return;
     }
     
-    this.postStatus("Fetching available models...");
-    this.modelListCollector = "";
-    this.isCollectingModelList = true;
+    // Get models from hermes.modelList setting
+    const modelList = vscode.workspace.getConfiguration("hermes").get<string>("modelList", "");
+    const models = modelList.split(",").map(m => m.trim()).filter(m => m);
     
+    if (models.length === 0) {
+      this.postError("No models configured. Set hermes.modelList in settings.");
+      return;
+    }
+    
+    // Try to detect current model from session info
+    let currentModel = "";
     try {
-      // Send the command and wait a bit for stream to complete
-      await this.client.prompt(this.sessionId, "/modellist");
-      
-      // Wait for stream to finish (give it time to collect all chunks)
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      this.isCollectingModelList = false;
-      
-      const output = this.modelListCollector;
-      this.outputChannel.appendLine("[ModelList] Collected output:");
-      this.outputChannel.appendLine(output || "(empty)");
-      
-      // Parse model list from collected output
-      const models: { label: string; description: string; picked?: boolean }[] = [];
-      const lines = output.split(/\r?\n/);
-      
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed === "Available:") continue;
-        
-        let modelName = "";
-        const dashMatch = trimmed.match(/^[-\u2022\u25E6\u25AA]\s*(.+)$/);
-        if (dashMatch) {
-          modelName = dashMatch[1].trim();
-        } else if (trimmed && !trimmed.includes(":") && trimmed.length > 2) {
-          modelName = trimmed;
-        }
-        
-        if (!modelName) continue;
-        
-        const currentMarker = "*(current)*";
-        const isCurrent = modelName.includes(currentMarker);
-        modelName = modelName.replace(currentMarker, "").trim();
-        modelName = modelName.replace(/\*\*/g, "").replace(/\*/g, "").trim();
-        
-        if (modelName) {
-          models.push({
-            label: modelName,
-            description: isCurrent ? "Current" : "",
-            picked: isCurrent,
-          });
+      const sessions = await this.client.listSessions();
+      const sessionData = sessions.result as any;
+      if (sessionData?.sessions) {
+        const currentSession = sessionData.sessions.find((s: any) => s.sessionId === this.sessionId);
+        if (currentSession?.model) {
+          currentModel = currentSession.model;
         }
       }
-      
-      this.outputChannel.appendLine(`[ModelList] Parsed ${models.length} models`);
-      
-      if (models.length === 0) {
-        // Fallback to hermes.modelList setting
-        const modelList = vscode.workspace.getConfiguration("hermes").get<string>("modelList", "");
-        const fallbackModels = modelList.split(",").map(m => m.trim()).filter(m => m);
-        if (fallbackModels.length > 0) {
-          const selected = await vscode.window.showQuickPick(fallbackModels.map(m => ({ label: m })), {
-            placeHolder: "Select a model (from settings)",
-          });
-          if (selected) {
-            await this.handleUserInput("/model " + selected.label);
-          }
-          return;
-        }
-        this.postError("No models found");
-        return;
-      }
-      
-      const selected = await vscode.window.showQuickPick(models, {
-        placeHolder: "Select a model",
-        canPickMany: false,
-      });
-      
-      if (selected) {
-        await this.handleUserInput("/model " + selected.label);
-      }
-    } catch (e: any) {
-      this.isCollectingModelList = false;
-      this.postError(`Failed to fetch models: ${e.message}`);
+    } catch (e) {
+      // Ignore error, just won't show current model
+    }
+    
+    const items = models.map(m => ({
+      label: m,
+      description: m === currentModel ? "Current" : "",
+      picked: m === currentModel,
+    }));
+    
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: "Select a model",
+    });
+    
+    if (selected) {
+      await this.handleUserInput("/model " + selected.label);
     }
   }
 
@@ -332,10 +287,6 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       case "agent_message_chunk": {
         const text = (update.content as any)?.text as string | undefined;
         if (text) {
-          // Capture model list output if collecting
-          if (this.isCollectingModelList) {
-            this.modelListCollector += text;
-          }
           this.postMessage("assistant-stream", text);
         }
         break;
