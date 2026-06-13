@@ -146,7 +146,7 @@
         "hermes.apiServerKey": {
           "type": "string",
           "default": "",
-          "description": "API server bearer token"
+          "description": "API server bearer token (set in User settings, not workspace)"
         }
       }
     }
