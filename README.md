@@ -7,47 +7,138 @@ Chat with [Hermes Agent](https://hermes-agent.nousresearch.com/) directly in VS 
 - **Native Integration** - Chat with Hermes in a VS Code side panel
 - **Full Agent Capabilities** - Access all Hermes tools, memory, and skills
 - **Session Management** - Create new sessions, cancel turns, restart agent
+- **Model Selection** - Choose from available models via toolbar icon
 - **Streaming Responses** - See agent responses as they are generated
 - **Token Usage** - Display token usage for each turn
+- **Setup Wizard** - Built-in configuration helper
 
-## Requirements
+## Quick Start
 
-- [Hermes Agent](https://hermes-agent.nousresearch.com/docs/getting-started/installation) installed and configured
-- VS Code 1.85.0 or later
+### 1. Install Hermes Agent
 
-## Installation
+Follow the [official installation guide](https://hermes-agent.nousresearch.com/docs/getting-started/installation).
 
-### From VSIX
+### 2. Install Extension
 
-1. Download the latest `.vsix` file from [Releases](https://github.com/zdenkor/hermes-ollama-vscode/releases)
-2. Run: `code --install-extension hermes-vscode-x.x.x.vsix`
-
-### From Source
-
+Download the latest `.vsix` from [Releases](https://github.com/zdenkor/hermes-ollama-vscode/releases) and run:
 ```bash
-npm install
-npm run build
-npx vsce package
-code --install-extension hermes-vscode-*.vsix
+code --install-extension hermes-vscode-x.x.x.vsix
+```
+
+### 3. Configure Executable Path
+
+Open VS Code Settings (Ctrl+,) and search for "hermes executable". Set the path to your `hermes.exe` (Windows) or `hermes` binary (macOS/Linux).
+
+**Default Windows:** `C:/Users/{username}/AppData/Local/hermes/hermes-agent/venv/Scripts/hermes.exe`
+
+### 4. Open Hermes Chat
+
+Click the Hermes icon in the Activity Bar (left sidebar) to open the chat panel.
+
+## Setup Wizard
+
+Click the **gear icon** in the Hermes chat toolbar to open the Setup Wizard:
+
+- **Check Connection** - Verify Hermes is running
+- **Configure API Server** - Enable model discovery via HTTP API
+- **Set Model List** - Manually configure available models
+- **Open Terminal** - Quick access to run Hermes commands
+- **Help** - Open official documentation
+
+## Model Selection
+
+### Option A: API Server (Recommended)
+
+For automatic model discovery, enable the Hermes API server:
+
+1. Add to `~/.hermes/.env`:
+   ```
+   API_SERVER_ENABLED=true
+   API_SERVER_KEY=your-secret-key
+   ```
+2. Start gateway: `hermes gateway`
+3. Set `hermes.apiServerKey` in VS Code settings
+4. Click the **circuit-board icon** in toolbar to choose models
+
+### Option B: Manual Model List
+
+Set `hermes.modelList` in VS Code settings:
+```json
+"hermes.modelList": "deepseek-v4-pro:cloud,deepseek-v4-flash:cloud,minimax-m3:cloud"
 ```
 
 ## Configuration
 
 ### hermes.executable
-
 Path to the Hermes executable.
 
-**Default (Windows):** `C:/Users/{username}/AppData/Local/hermes/hermes-agent/venv/Scripts/hermes.exe`
-
-**Default (macOS/Linux):** `~/.local/bin/hermes` or `~/Library/Hermes/hermes-agent/venv/bin/hermes`
-
 ### hermes.defaultCwd
-
-Default working directory for agent sessions. Defaults to the current VS Code workspace.
+Default working directory for agent sessions.
 
 ### hermes.logTraffic
+Log ACP protocol traffic to output panel for debugging.
 
-Log ACP protocol traffic to the output panel for debugging.
+### hermes.modelList
+Comma-separated list of available models (fallback when API server is offline).
+
+### hermes.apiServerUrl
+Hermes API server URL. Default: `http://127.0.0.1:8642`
+
+### hermes.apiServerKey
+API server bearer token. Set this in **User settings** (not workspace) for security.
+
+## Commands
+
+| Command | Keybinding | Description |
+|---------|-----------|-------------|
+| Hermes: Send Prompt | | Focus input box |
+| Hermes: New Session | | Start fresh session |
+| Hermes: Choose Model | | Select active model |
+| Hermes: Sessions | | List and resume sessions |
+| Hermes: Cancel Turn | Escape | Stop current generation |
+| Hermes: Restart Agent | | Reconnect to agent |
+| Hermes: Setup Wizard | | Configuration helper |
+
+## Slash Commands
+
+In the chat input, type:
+- `/new` - Start new session
+- `/model <name>` - Switch model
+- `/modellist` - Show available models
+- `/sessions` - List sessions
+- `/cancel` - Cancel current turn
+
+## Requirements
+
+- VS Code 1.85.0 or later
+- [Hermes Agent](https://hermes-agent.nousresearch.com/docs/getting-started/installation) installed
+- (Optional) API server enabled for model discovery
+
+## Troubleshooting
+
+**"Not connected to agent"**
+- Check `hermes.executable` path in settings
+- Run Setup Wizard → Check Connection
+- Ensure Hermes is installed: `hermes --version`
+
+**"No models found"**
+- Start API server: `hermes gateway`
+- Or set `hermes.modelList` manually
+- Check API key is configured
+
+**Connection errors**
+- Enable `hermes.logTraffic` to see ACP messages
+- Check Hermes Output channel for details
+
+## Links
+
+- [Hermes Documentation](https://hermes-agent.nousresearch.com/docs/)
+- [API Server Guide](https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server)
+- [Report Issues](https://github.com/zdenkor/hermes-ollama-vscode/issues)
+
+## License
+
+MIT
 
 ### hermes.model
 
