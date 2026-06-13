@@ -129,20 +129,41 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       const res = await this.client.prompt(this.sessionId, "/modellist");
       const output = (res.result as any)?.output || "";
       
+      this.outputChannel.appendLine("[ModelList] Raw output:");
+      this.outputChannel.appendLine(output);
+      this.outputChannel.appendLine("[ModelList] --- end ---");
+      
       // Parse model list from output
-      // Format: "- model-name *(current)*" or "- model-name"
+      // Format: "- model-name *(current)*" or "• model-name" or just "model-name"
       const models: { label: string; description: string; picked?: boolean }[] = [];
-      const lines = output.split("\n");
+      
+      // Try different line separators
+      const lines = output.split(/\r?\n/);
       
       for (const line of lines) {
         const trimmed = line.trim();
-        if (trimmed.startsWith("- ")) {
-          // Extract model name from "- model-name *(current)*"
-          let modelName = trimmed.substring(2).trim();
-          const currentMarker = "*(current)*";
-          const isCurrent = modelName.includes(currentMarker);
-          modelName = modelName.replace(currentMarker, "").trim();
-          
+        if (!trimmed || trimmed === "Available:") continue;
+        
+        // Match "- model-name *(current)*" or "• model-name"
+        let modelName = "";
+        const dashMatch = trimmed.match(/^[-\u2022\u25E6\u25AA]\s*(.+)$/);
+        if (dashMatch) {
+          modelName = dashMatch[1].trim();
+        } else if (trimmed.includes(":") && !trimmed.startsWith("http")) {
+          // Could be "model-name" without prefix
+          modelName = trimmed;
+        }
+        
+        if (!modelName) continue;
+        
+        const currentMarker = "*(current)*";
+        const isCurrent = modelName.includes(currentMarker);
+        modelName = modelName.replace(currentMarker, "").trim();
+        
+        // Clean up any remaining markdown
+        modelName = modelName.replace(/\*\*/g, "").replace(/\*/g, "").trim();
+        
+        if (modelName) {
           models.push({
             label: modelName,
             description: isCurrent ? "Current" : "",
@@ -151,8 +172,10 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         }
       }
       
+      this.outputChannel.appendLine(`[ModelList] Parsed ${models.length} models`);
+      
       if (models.length === 0) {
-        this.postError("No models found");
+        this.postError("No models found. Check output channel for details.");
         return;
       }
       
