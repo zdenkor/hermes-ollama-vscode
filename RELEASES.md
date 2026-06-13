@@ -1,9 +1,13 @@
 # Release Notes
 
-## v0.5.1
-- Rename extension to **Ollama Hermes Agent**
+## v0.5.2
+- Update send button icon to match GitHub Copilot chat style
+  - Thin stroke-based upward arrow (not filled shape)
+  - Gray circle (#404040) when inactive, blue (var(--accent)) when active
+  - Smaller size: 24px circle with 14px arrow
 - Query Ollama API directly at `http://127.0.0.1:11434/api/tags` for real model discovery
 - Remove broken Hermes API server model fetch (returns agent profile, not LLM models)
+- Rename extension to **Ollama Hermes Agent**
 - Update README and branding to reflect Ollama backend
 
 ## v0.5.0
