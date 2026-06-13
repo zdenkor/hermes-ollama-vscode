@@ -1,6 +1,6 @@
-# Hermes VS Code Extension
+# Ollama Hermes Agent
 
-Chat with [Hermes Agent](https://hermes-agent.nousresearch.com/) directly in VS Code using the ACP protocol.
+Chat with [Hermes Agent](https://hermes-agent.nousresearch.com/) directly in VS Code using the ACP protocol, with Ollama as the LLM backend.
 
 ## Features
 

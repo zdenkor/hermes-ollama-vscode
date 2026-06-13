@@ -1,8 +1,8 @@
 {
   "name": "hermes-vscode",
-  "displayName": "Hermes Chat",
-  "description": "Chat with Hermes Agent in VS Code. Uses ACP protocol — full agent with tools, memory, and skills.",
-  "version": "0.5.0",
+  "displayName": "Ollama Hermes Agent",
+  "description": "Chat with Hermes Agent in VS Code via Ollama. Uses ACP protocol — full agent with tools, memory, and skills.",
+  "version": "0.5.1",
   "publisher": "hermes",
   "repository": "https://github.com/zdenkor/hermes-ollama-vscode",
   "license": "MIT",
