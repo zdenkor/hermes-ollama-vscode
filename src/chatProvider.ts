@@ -119,6 +119,35 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     await this.ensureAgent(sessionId);
   }
 
+  async commandChooseModel(): Promise<void> {
+    if (!this.client || !this.sessionId) {
+      this.postError("Not connected to agent");
+      return;
+    }
+    this.postStatus("Fetching available models...");
+    try {
+      const res = await this.client.prompt(this.sessionId, "/modellist");
+      const output = (res.result as any)?.output || "";
+      const lines = output.split("\n").filter((l: string) => l.trim());
+      const models = lines.filter((l: string) => !l.includes("Available") && !l.includes("---") && !l.includes("Model") && !l.includes("✓")).map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+      
+      if (models.length === 0) {
+        this.postError("No models found");
+        return;
+      }
+      
+      const selected = await vscode.window.showQuickPick(models.map(m => ({ label: m })), {
+        placeHolder: "Select a model",
+      });
+      
+      if (selected) {
+        await this.handleUserInput("/model " + selected.label);
+      }
+    } catch (e: any) {
+      this.postError(`Failed to fetch models: ${e.message}`);
+    }
+  }
+
   private stopAgent(): void {
     if (this.client) {
       this.client.stop();

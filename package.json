@@ -59,6 +59,11 @@
         "icon": "$(add)"
       },
       {
+        "command": "hermes.chooseModel",
+        "title": "Hermes: Choose Model",
+        "icon": "$(circuit-board)"
+      },
+      {
         "command": "hermes.sessions",
         "title": "Hermes: Sessions",
         "icon": "$(history)"
@@ -77,9 +82,14 @@
           "group": "navigation@1"
         },
         {
-          "command": "hermes.sessions",
+          "command": "hermes.chooseModel",
           "when": "view == hermes-chat",
           "group": "navigation@2"
+        },
+        {
+          "command": "hermes.sessions",
+          "when": "view == hermes-chat",
+          "group": "navigation@3"
         },
         {
           "command": "hermes.cancel",
