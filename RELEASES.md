@@ -1,5 +1,11 @@
 # Release Notes
 
+## v0.5.1
+- Rename extension to **Ollama Hermes Agent**
+- Query Ollama API directly at `http://127.0.0.1:11434/api/tags` for real model discovery
+- Remove broken Hermes API server model fetch (returns agent profile, not LLM models)
+- Update README and branding to reflect Ollama backend
+
 ## v0.5.0
 - Add Setup Wizard (gear icon) for configuration helper
 - Add API server integration for real-time model discovery
