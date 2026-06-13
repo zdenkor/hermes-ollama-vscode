@@ -29,6 +29,17 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         case "send": this.handleUserInput(msg.text); break;
         case "cancel": this.commandCancel(); break;
         case "newSession": this.commandNewSession(); break;
+        case "saveHistory": {
+          const history = this.loadCommandHistory();
+          if (!history.includes(msg.text)) {
+            history.push(msg.text);
+            this.saveCommandHistory(history);
+          }
+          break;
+        }
+        case "loadHistory":
+          webviewView.webview.postMessage({ type: "history", history: this.loadCommandHistory() });
+          break;
       }
     });
 
@@ -45,6 +56,8 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   commandCancel(): void {
     if (this.client && this.turnInProgress && this.sessionId) {
       this.client.cancel(this.sessionId);
+      this.turnInProgress = false;
+      this.setContext("hermes.turnInProgress", false);
     }
   }
 
@@ -114,6 +127,14 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     this.sessionId = undefined;
     this.turnInProgress = false;
     this.setContext("hermes.turnInProgress", false);
+  }
+
+  private loadCommandHistory(): string[] {
+    return this.context.globalState.get<string[]>("commandHistory", []);
+  }
+
+  private saveCommandHistory(history: string[]): void {
+    this.context.globalState.update("commandHistory", history);
   }
 
   private async ensureAgent(resumeSessionId?: string): Promise<void> {
@@ -607,8 +628,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       const text = inputEl.value.trim();
       if (!text || thinking) return;
       if (text) {
-        commandHistory.push(text);
-        historyIndex = commandHistory.length;
+        vscode.postMessage({ type: 'saveHistory', text });
       }
       inputEl.value = '';
       savedInput = '';
@@ -662,6 +682,10 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         case 'status':
           setStatus(msg.text);
           break;
+        case 'history':
+          commandHistory = msg.history || [];
+          historyIndex = commandHistory.length;
+          break;
         case 'message':
           // Handle stream concatenation
           if (msg.kind === 'assistant-stream') {
@@ -698,6 +722,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     });
 
     inputEl.focus();
+    vscode.postMessage({ type: 'loadHistory' });
   </script>
 </body>
 </html>`;
