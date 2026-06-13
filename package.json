@@ -2,7 +2,7 @@
   "name": "hermes-vscode",
   "displayName": "Hermes Chat",
   "description": "Chat with Hermes Agent in VS Code. Uses ACP protocol — full agent with tools, memory, and skills.",
-  "version": "0.4.9",
+  "version": "0.5.0",
   "publisher": "hermes",
   "repository": "https://github.com/zdenkor/hermes-ollama-vscode",
   "license": "MIT",
@@ -72,6 +72,11 @@
         "command": "hermes.restartAgent",
         "title": "Hermes: Restart Agent",
         "icon": "$(debug-restart)"
+      },
+      {
+        "command": "hermes.setup",
+        "title": "Hermes: Setup Wizard",
+        "icon": "$(gear)"
       }
     ],
     "menus": {
@@ -100,6 +105,11 @@
           "command": "hermes.restartAgent",
           "when": "view == hermes-chat",
           "group": "navigation@4"
+        },
+        {
+          "command": "hermes.setup",
+          "when": "view == hermes-chat",
+          "group": "navigation@5"
         }
       ]
     },
