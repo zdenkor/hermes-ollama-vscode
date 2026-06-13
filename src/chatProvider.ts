@@ -184,7 +184,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
           session = await this.client.loadSession(lastSession.sessionId, cwd);
         } else {
           // No sessions to resume, create new
-          session = await this.client.newSession(cwd, model);
+          const model = vscode.workspace.getConfiguration("hermes").get<string>("model") || undefined; session = await this.client.newSession(cwd, model);
         }
       }
       this.outputChannel.appendLine(`Session response: ${JSON.stringify(session)}`);
@@ -200,7 +200,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       this.sessionId = loadedSessionId || (session.result && typeof session.result === "object" ? (session.result as any).sessionId : undefined);
 
       this.postStatus("");
-      this.postMessage("system", `Hermes ready — session ${this.sessionId?.slice(0, 8)}...`);
+      this.postMessage("system", `Hermes ready â€” session ${this.sessionId?.slice(0, 8)}...`);
     } catch (err: any) {
       this.outputChannel.appendLine(`Connection error: ${err.message}`);
       this.postError(`Connection failed: ${err.message}`);
@@ -729,3 +729,4 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
 </html>`;
   }
 }
+
