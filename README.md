@@ -49,6 +49,10 @@ Default working directory for agent sessions. Defaults to the current VS Code wo
 
 Log ACP protocol traffic to the output panel for debugging.
 
+### hermes.model
+
+Model to use for agent sessions (e.g. `deepseek-v4-pro:cloud`). Leave empty for default model.
+
 ## Usage
 
 1. Open the Hermes view from the Activity Bar (icon in the left sidebar)
