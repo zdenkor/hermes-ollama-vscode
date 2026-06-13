@@ -53,6 +53,10 @@ Log ACP protocol traffic to the output panel for debugging.
 
 Model to use for agent sessions (e.g. `deepseek-v4-pro:cloud`). Leave empty for default model.
 
+### hermes.modelList
+
+Comma-separated list of available models for selection in Settings. Default: `deepseek-v4-pro:cloud,deepseek-v4-pro:local,llama3.2:latest,qwen2.5:latest`
+
 ## Usage
 
 1. Open the Hermes view from the Activity Bar (icon in the left sidebar)

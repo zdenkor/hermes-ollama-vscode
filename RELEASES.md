@@ -1,5 +1,8 @@
 # Release Notes
 
+## v0.4.8
+- Add hermes.modelList setting for available models
+
 ## v0.4.7
 - Fix model config usage in newSession calls
 
