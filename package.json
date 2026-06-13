@@ -137,6 +137,16 @@
           "type": "string",
           "default": "deepseek-v4-pro:cloud,deepseek-v4-pro:local,llama3.2:latest,qwen2.5:latest",
           "description": "Comma-separated list of available models for selection"
+        },
+        "hermes.apiServerUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8642",
+          "description": "Hermes API server URL for fetching available models"
+        },
+        "hermes.apiServerKey": {
+          "type": "string",
+          "default": "",
+          "description": "API server bearer token"
         }
       }
     }

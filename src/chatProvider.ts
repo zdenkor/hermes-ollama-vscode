@@ -8,8 +8,6 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   private turnInProgress = false;
   private executable: string;
   private outputChannel: vscode.OutputChannel;
-  private modelListBuffer: string = "";
-  private collectingModelList = false;
 
   constructor(private context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
     this.executable = vscode.workspace
@@ -128,86 +126,50 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     }
     
     this.postStatus("Fetching available models...");
-    this.modelListBuffer = "";
-    this.collectingModelList = true;
     
     try {
-      // Send the command
-      await this.client.prompt(this.sessionId, "/modellist");
+      // Try to fetch from API server first
+      const apiUrl = vscode.workspace.getConfiguration("hermes").get<string>("apiServerUrl", "http://127.0.0.1:8642");
+      const apiKey = vscode.workspace.getConfiguration("hermes").get<string>("apiServerKey", "change-me-local-dev");
       
-      // Wait for stream to complete (up to 5 seconds)
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      let models: { label: string; description: string; picked?: boolean }[] = [];
       
-      this.collectingModelList = false;
-      
-      const output = this.modelListBuffer;
-      this.outputChannel.appendLine("[ModelList] Raw collected:");
-      this.outputChannel.appendLine(output);
-      this.outputChannel.appendLine("[ModelList] ---");
-      
-      // Parse: handle both bullet lists and pipe-separated formats
-      const models: { label: string; description: string; picked?: boolean }[] = [];
-      
-      // Try pipe-separated format first: "model1 | model2 | model3"
-      if (output.includes("|")) {
-        const parts = output.split("|");
-        for (const part of parts) {
-          let name = part.trim();
-          const isCurrent = name.includes("*(current)*");
-          name = name.replace(/\*\(current\)\*/g, "").replace(/\*\*/g, "").trim();
-          
-          if (name && name.length > 2) {
-            models.push({
-              label: name,
-              description: isCurrent ? "Current" : "",
-              picked: isCurrent,
-            });
-          }
-        }
-      }
-      
-      // Fallback to bullet list format
-      if (models.length === 0) {
-        const lines = output.split(/\r?\n/);
-        let foundAvailable = false;
+      try {
+        const response = await fetch(`${apiUrl}/v1/models`, {
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+          },
+        });
         
-        for (const line of lines) {
-          const trimmed = line.trim();
+        if (response.ok) {
+          const data = await response.json() as any;
+          this.outputChannel.appendLine(`[ModelList] API response: ${JSON.stringify(data)}`);
           
-          if (trimmed.match(/^available/i)) {
-            foundAvailable = true;
-            continue;
-          }
-          
-          if (!foundAvailable) continue;
-          
-          // Stop at conversational text
-          if (trimmed.match(/^(want to|need|would|can i|let me|same as|nothing changed)/i)) {
-            break;
-          }
-          
-          // Parse bullet lines
-          const match = trimmed.match(/^[-\u2022]\s*(.+)$/);
-          if (match) {
-            let name = match[1].trim();
-            const isCurrent = name.includes("*(current)*");
-            name = name.replace(/\*\(current\)\*/g, "").replace(/\*\*/g, "").trim();
-            
-            if (name && name.length > 2) {
-              models.push({
-                label: name,
-                description: isCurrent ? "Current" : "",
-                picked: isCurrent,
-              });
+          if (data.data && Array.isArray(data.data)) {
+            for (const model of data.data) {
+              const id = model.id || model.model || "";
+              if (id) {
+                models.push({
+                  label: id,
+                  description: "",
+                });
+              }
             }
           }
         }
+      } catch (apiErr: any) {
+        this.outputChannel.appendLine(`[ModelList] API error: ${apiErr.message}`);
       }
       
-      this.outputChannel.appendLine(`[ModelList] Found ${models.length} models`);
+      // Fallback to hermes.modelList setting if API fails
+      if (models.length === 0) {
+        const modelList = vscode.workspace.getConfiguration("hermes").get<string>("modelList", "");
+        const fallbackModels = modelList.split(",").map(m => m.trim()).filter(m => m);
+        models = fallbackModels.map(m => ({ label: m, description: "" }));
+      }
       
       if (models.length === 0) {
-        this.postError("No models found in response");
+        this.postError("No models found. Configure hermes.modelList or start API server.");
         return;
       }
       
@@ -219,7 +181,6 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         await this.handleUserInput("/model " + selected.label);
       }
     } catch (e: any) {
-      this.collectingModelList = false;
       this.postError(`Failed: ${e.message}`);
     }
   }
@@ -347,10 +308,6 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       case "agent_message_chunk": {
         const text = (update.content as any)?.text as string | undefined;
         if (text) {
-          // Capture model list output
-          if (this.collectingModelList) {
-            this.modelListBuffer += text;
-          }
           this.postMessage("assistant-stream", text);
         }
         break;
