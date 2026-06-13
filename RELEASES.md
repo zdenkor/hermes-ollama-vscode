@@ -1,5 +1,17 @@
 # Release Notes
 
+## v0.4.7
+- Fix model config usage in newSession calls
+
+## v0.4.6
+- Add hermes.model configuration option in Settings
+
+## v0.4.5
+- Fix cancel button to reset turnInProgress
+- Persist command history using globalState (survives restart)
+- Add @types/events for EventEmitter types
+- Add types: node to tsconfig.json
+
 ## v0.4.4
 - Add arrow up/down for prompt history navigation
 
