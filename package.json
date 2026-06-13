@@ -117,6 +117,11 @@
           "type": "boolean",
           "default": true,
           "description": "Log ACP protocol traffic to output"
+        },
+        "hermes.model": {
+          "type": "string",
+          "default": "",
+          "description": "Model to use (e.g. deepseek-v4-pro:cloud). Leave empty for default."
         }
       }
     }
@@ -126,6 +131,7 @@
     "watch": "node esbuild.mjs --watch"
   },
   "devDependencies": {
+    "@types/events": "^3.0.3",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.9.2",

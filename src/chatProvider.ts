@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { AcpClient } from "./acpClient";
+import { AcpClient, AcpNotification } from "./acpClient";
 
 export class HermesChatProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
@@ -58,6 +58,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       this.client.cancel(this.sessionId);
       this.turnInProgress = false;
       this.setContext("hermes.turnInProgress", false);
+      this.postMessage("thinking-end", {});
     }
   }
 
@@ -93,7 +94,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         vscode.window.showInformationMessage("No sessions found");
         return;
       }
-      const items = sessions.map((s: any) => ({
+      const items: (vscode.QuickPickItem & { sessionId: string })[] = sessions.map((s: any) => ({
         label: s.title || "Untitled",
         description: s.sessionId?.slice(0, 8),
         detail: s.cwd,
@@ -183,7 +184,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
           session = await this.client.loadSession(lastSession.sessionId, cwd);
         } else {
           // No sessions to resume, create new
-          session = await this.client.newSession(cwd);
+          session = await this.client.newSession(cwd, model);
         }
       }
       this.outputChannel.appendLine(`Session response: ${JSON.stringify(session)}`);
@@ -209,7 +210,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   private setupClientHandlers(): void {
     if (!this.client) return;
 
-    this.client.on("notification", (msg) => {
+    this.client.on("notification", (msg: AcpNotification) => {
       if (msg.method === "session/update") {
         this.handleSessionUpdate(msg.params);
       }
@@ -608,7 +609,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     function setThinking(active) {
       thinking = active;
       inputEl.disabled = active;
-      sendBtn.disabled = active;
+      sendBtn.style.display = active ? "none" : "flex";
       cancelBtn.style.display = active ? 'block' : 'none';
 
       if (active) {

@@ -94,11 +94,15 @@ export class AcpClient extends EventEmitter {
     });
   }
 
-  async newSession(cwd: string): Promise<AcpResponse> {
-    return this.sendRequest("session/new", {
+  async newSession(cwd: string, model?: string): Promise<AcpResponse> {
+    const params: Record<string, unknown> = {
       cwd,
       mcp_servers: [],
-    });
+    };
+    if (model) {
+      params.model = model;
+    }
+    return this.sendRequest("session/new", params);
   }
 
   async prompt(sessionId: string, text: string): Promise<AcpResponse> {
