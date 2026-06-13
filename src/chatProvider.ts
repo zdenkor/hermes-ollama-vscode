@@ -124,90 +124,22 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       this.postError("Not connected to agent");
       return;
     }
-    this.postStatus("Fetching available models...");
-    try {
-      const res = await this.client.prompt(this.sessionId, "/modellist");
-      
-      this.outputChannel.appendLine("[ModelList] Full response:");
-      this.outputChannel.appendLine(JSON.stringify(res, null, 2));
-      this.outputChannel.appendLine("[ModelList] --- end ---");
-      
-      // Try different response fields
-      let output = "";
-      const result = res.result as any;
-      
-      if (result?.output) {
-        output = result.output;
-      } else if (result?.content) {
-        output = typeof result.content === "string" ? result.content : JSON.stringify(result.content);
-      } else if (result?.text) {
-        output = result.text;
-      } else if (result?.message) {
-        output = result.message;
-      } else if (result?.response) {
-        output = result.response;
-      } else {
-        // Try to extract from messages array
-        const messages = result?.messages || result?.prompt || [];
-        for (const msg of messages) {
-          if (msg?.type === "text" || msg?.role === "assistant") {
-            output += (msg?.text || msg?.content || "") + "\n";
-          }
-        }
-      }
-      
-      this.outputChannel.appendLine("[ModelList] Extracted output:");
-      this.outputChannel.appendLine(output || "(empty)");
-      
-      // Parse model list from output
-      const models: { label: string; description: string; picked?: boolean }[] = [];
-      const lines = output.split(/\r?\n/);
-      
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed === "Available:") continue;
-        
-        let modelName = "";
-        const dashMatch = trimmed.match(/^[-\u2022\u25E6\u25AA]\s*(.+)$/);
-        if (dashMatch) {
-          modelName = dashMatch[1].trim();
-        } else if (trimmed && !trimmed.includes(":") && trimmed.length > 2) {
-          modelName = trimmed;
-        }
-        
-        if (!modelName) continue;
-        
-        const currentMarker = "*(current)*";
-        const isCurrent = modelName.includes(currentMarker);
-        modelName = modelName.replace(currentMarker, "").trim();
-        modelName = modelName.replace(/\*\*/g, "").replace(/\*/g, "").trim();
-        
-        if (modelName) {
-          models.push({
-            label: modelName,
-            description: isCurrent ? "Current" : "",
-            picked: isCurrent,
-          });
-        }
-      }
-      
-      this.outputChannel.appendLine(`[ModelList] Parsed ${models.length} models`);
-      
-      if (models.length === 0) {
-        this.postError("No models found. Check Hermes output channel for details.");
-        return;
-      }
-      
-      const selected = await vscode.window.showQuickPick(models, {
-        placeHolder: "Select a model",
-        canPickMany: false,
-      });
-      
-      if (selected) {
-        await this.handleUserInput("/model " + selected.label);
-      }
-    } catch (e: any) {
-      this.postError(`Failed to fetch models: ${e.message}`);
+    
+    // Get models from hermes.modelList setting
+    const modelList = vscode.workspace.getConfiguration("hermes").get<string>("modelList", "");
+    const models = modelList.split(",").map(m => m.trim()).filter(m => m);
+    
+    if (models.length === 0) {
+      this.postError("No models configured. Set hermes.modelList in settings.");
+      return;
+    }
+    
+    const selected = await vscode.window.showQuickPick(models.map(m => ({ label: m })), {
+      placeHolder: "Select a model",
+    });
+    
+    if (selected) {
+      await this.handleUserInput("/model " + selected.label);
     }
   }
 
