@@ -128,40 +128,32 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     this.postStatus("Fetching available models...");
     
     try {
-      // Try to fetch from API server first
-      const apiUrl = vscode.workspace.getConfiguration("hermes").get<string>("apiServerUrl", "http://127.0.0.1:8642");
-      const apiKey = vscode.workspace.getConfiguration("hermes").get<string>("apiServerKey", "");
-      
       let models: { label: string; description: string; picked?: boolean }[] = [];
       
+      // Try Ollama API first (local models)
       try {
-        const response = await fetch(`${apiUrl}/v1/models`, {
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-          },
-        });
-        
-        if (response.ok) {
-          const data = await response.json() as any;
-          this.outputChannel.appendLine(`[ModelList] API response: ${JSON.stringify(data)}`);
+        const ollamaResponse = await fetch("http://127.0.0.1:11434/api/tags");
+        if (ollamaResponse.ok) {
+          const ollamaData = await ollamaResponse.json() as any;
+          this.outputChannel.appendLine(`[ModelList] Ollama response: ${JSON.stringify(ollamaData).slice(0, 500)}`);
           
-          if (data.data && Array.isArray(data.data)) {
-            for (const model of data.data) {
-              const id = model.id || model.model || "";
-              if (id) {
+          if (ollamaData.models && Array.isArray(ollamaData.models)) {
+            for (const model of ollamaData.models) {
+              const name = model.name || model.model || "";
+              if (name) {
                 models.push({
-                  label: id,
-                  description: "",
+                  label: name,
+                  description: model.details?.parameter_size || "",
                 });
               }
             }
           }
         }
-      } catch (apiErr: any) {
-        this.outputChannel.appendLine(`[ModelList] API error: ${apiErr.message}`);
+      } catch (ollamaErr: any) {
+        this.outputChannel.appendLine(`[ModelList] Ollama error: ${ollamaErr.message}`);
       }
       
-      // Fallback to hermes.modelList setting if API fails
+      // Fallback to hermes.modelList setting
       if (models.length === 0) {
         const modelList = vscode.workspace.getConfiguration("hermes").get<string>("modelList", "");
         const fallbackModels = modelList.split(",").map(m => m.trim()).filter(m => m);
@@ -169,7 +161,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       }
       
       if (models.length === 0) {
-        this.postError("No models found. Configure hermes.modelList or start API server.");
+        this.postError("No models found. Start Ollama or configure hermes.modelList.");
         return;
       }
       
