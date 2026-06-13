@@ -12,7 +12,8 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "declaration": false,
-    "useDefineForClassFields": false
+    "useDefineForClassFields": false,
+    "types": ["node"]
   },
   "include": ["src/**/*"]
 }
