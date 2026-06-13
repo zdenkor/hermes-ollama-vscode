@@ -145,39 +145,61 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       this.outputChannel.appendLine(output);
       this.outputChannel.appendLine("[ModelList] ---");
       
-      // Parse: look for lines starting with "- " between "Available:" and conversational text
+      // Parse: handle both bullet lists and pipe-separated formats
       const models: { label: string; description: string; picked?: boolean }[] = [];
-      const lines = output.split(/\r?\n/);
-      let foundAvailable = false;
       
-      for (const line of lines) {
-        const trimmed = line.trim();
-        
-        if (trimmed.match(/^available/i)) {
-          foundAvailable = true;
-          continue;
-        }
-        
-        if (!foundAvailable) continue;
-        
-        // Stop at conversational text
-        if (trimmed.match(/^(want to|need|would|can i|let me|same as|nothing changed)/i)) {
-          break;
-        }
-        
-        // Parse bullet lines
-        const match = trimmed.match(/^[-\u2022]\s*(.+)$/);
-        if (match) {
-          let name = match[1].trim();
+      // Try pipe-separated format first: "model1 | model2 | model3"
+      if (output.includes("|")) {
+        const parts = output.split("|");
+        for (const part of parts) {
+          let name = part.trim();
           const isCurrent = name.includes("*(current)*");
           name = name.replace(/\*\(current\)\*/g, "").replace(/\*\*/g, "").trim();
           
-          if (name && name.includes(":")) {
+          if (name && name.length > 2) {
             models.push({
               label: name,
               description: isCurrent ? "Current" : "",
               picked: isCurrent,
             });
+          }
+        }
+      }
+      
+      // Fallback to bullet list format
+      if (models.length === 0) {
+        const lines = output.split(/\r?\n/);
+        let foundAvailable = false;
+        
+        for (const line of lines) {
+          const trimmed = line.trim();
+          
+          if (trimmed.match(/^available/i)) {
+            foundAvailable = true;
+            continue;
+          }
+          
+          if (!foundAvailable) continue;
+          
+          // Stop at conversational text
+          if (trimmed.match(/^(want to|need|would|can i|let me|same as|nothing changed)/i)) {
+            break;
+          }
+          
+          // Parse bullet lines
+          const match = trimmed.match(/^[-\u2022]\s*(.+)$/);
+          if (match) {
+            let name = match[1].trim();
+            const isCurrent = name.includes("*(current)*");
+            name = name.replace(/\*\(current\)\*/g, "").replace(/\*\*/g, "").trim();
+            
+            if (name && name.length > 2) {
+              models.push({
+                label: name,
+                description: isCurrent ? "Current" : "",
+                picked: isCurrent,
+              });
+            }
           }
         }
       }
