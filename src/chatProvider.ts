@@ -550,6 +550,9 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
 
     let thinking = false;
     let currentStreamEl = null;
+    let commandHistory = [];
+    let historyIndex = -1;
+    let savedInput = '';
 
     function scrollBottom() {
       messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -603,7 +606,12 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     function send() {
       const text = inputEl.value.trim();
       if (!text || thinking) return;
+      if (text) {
+        commandHistory.push(text);
+        historyIndex = commandHistory.length;
+      }
       inputEl.value = '';
+      savedInput = '';
       sendBtn.classList.remove('active');
       vscode.postMessage({ type: 'send', text });
     }
@@ -612,6 +620,27 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         send();
+      } else if (e.key === 'ArrowUp') {
+        if (historyIndex > 0) {
+          if (historyIndex === commandHistory.length) {
+            savedInput = inputEl.value;
+          }
+          historyIndex--;
+          inputEl.value = commandHistory[historyIndex];
+          inputEl.selectionStart = inputEl.selectionEnd = inputEl.value.length;
+        }
+        e.preventDefault();
+      } else if (e.key === 'ArrowDown') {
+        if (historyIndex < commandHistory.length - 1) {
+          historyIndex++;
+          inputEl.value = commandHistory[historyIndex];
+          inputEl.selectionStart = inputEl.selectionEnd = inputEl.value.length;
+        } else if (historyIndex === commandHistory.length - 1 && savedInput) {
+          historyIndex = commandHistory.length;
+          inputEl.value = savedInput;
+          savedInput = '';
+        }
+        e.preventDefault();
       }
     });
 
