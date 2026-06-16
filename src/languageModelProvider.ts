@@ -66,14 +66,17 @@ export class HermesLanguageModelProvider implements vscode.LanguageModelChatProv
     _options: vscode.LanguageModelChatSelector,
     _token: vscode.CancellationToken
   ): Promise<vscode.LanguageModelChatInformation[]> {
-    // Return Hermes as a single model option
     return [{
-      name: "hermes-agent",
-      vendor: "hermes",
+      id: "hermes-agent",
+      name: "Hermes Agent",
       family: "hermes",
       version: "1.0",
       maxInputTokens: 128000,
       maxOutputTokens: 4096,
+      capabilities: {
+        imageInput: false,
+        toolCalling: true,
+      },
     }];
   }
 
@@ -86,13 +89,23 @@ export class HermesLanguageModelProvider implements vscode.LanguageModelChatProv
   ): Promise<void> {
     const agent = await ensureAgent();
     if (!agent) {
-      progress.report({ value: new vscode.LanguageModelTextPart("❌ Hermes is not running. Check `hermes.executable` in Settings.") });
+      progress.report(new vscode.LanguageModelTextPart("❌ Hermes is not running. Check `hermes.executable` in Settings."));
       return;
     }
 
     // Get the last user message
     const lastMessage = messages[messages.length - 1];
-    const prompt = lastMessage.content.toString();
+    let prompt = "";
+    if (typeof lastMessage.content === "string") {
+      prompt = lastMessage.content;
+    } else if (Array.isArray(lastMessage.content)) {
+      // content is ReadonlyArray<LanguageModelInputPart | unknown>
+      for (const part of lastMessage.content) {
+        if (part instanceof vscode.LanguageModelTextPart) {
+          prompt += part.value;
+        }
+      }
+    }
 
     globalTurnInProgress = true;
 
@@ -105,7 +118,7 @@ export class HermesLanguageModelProvider implements vscode.LanguageModelChatProv
       if (type === "agent_message_chunk") {
         const text = update.content?.text as string;
         if (text) {
-          progress.report({ value: new vscode.LanguageModelTextPart(text) });
+          progress.report(new vscode.LanguageModelTextPart(text));
         }
       }
     };
@@ -121,7 +134,7 @@ export class HermesLanguageModelProvider implements vscode.LanguageModelChatProv
     try {
       await globalClient!.prompt(globalSessionId!, prompt);
     } catch (err: any) {
-      progress.report({ value: new vscode.LanguageModelTextPart(`\n\n❌ Error: ${err.message}`) });
+      progress.report(new vscode.LanguageModelTextPart(`\n\n❌ Error: ${err.message}`));
     } finally {
       globalClient!.off("notification", onNotify);
       globalTurnInProgress = false;
@@ -133,8 +146,18 @@ export class HermesLanguageModelProvider implements vscode.LanguageModelChatProv
     text: string | vscode.LanguageModelChatMessage,
     _token: vscode.CancellationToken
   ): Promise<number> {
-    // Rough estimate: 1 token ≈ 4 chars
-    const content = typeof text === "string" ? text : text.content.toString();
+    let content = "";
+    if (typeof text === "string") {
+      content = text;
+    } else if (typeof text.content === "string") {
+      content = text.content;
+    } else if (Array.isArray(text.content)) {
+      for (const part of text.content) {
+        if (part instanceof vscode.LanguageModelTextPart) {
+          content += part.value;
+        }
+      }
+    }
     return Math.ceil(content.length / 4);
   }
 }
