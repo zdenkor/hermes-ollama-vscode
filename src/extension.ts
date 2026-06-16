@@ -2,6 +2,21 @@ import * as vscode from "vscode";
 import { HermesChatProvider } from "./chatProvider";
 import { registerHermesChatParticipant } from "./chatParticipant";
 
+let participantDisposable: vscode.Disposable | undefined;
+
+function updateChatParticipant(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
+  const useCopilotChat = vscode.workspace.getConfiguration("hermes").get<boolean>("useCopilotChat", false);
+
+  if (useCopilotChat && !participantDisposable) {
+    participantDisposable = registerHermesChatParticipant(context, outputChannel);
+    outputChannel.appendLine("Hermes Copilot Chat participant registered (@hermes)");
+  } else if (!useCopilotChat && participantDisposable) {
+    participantDisposable.dispose();
+    participantDisposable = undefined;
+    outputChannel.appendLine("Hermes Copilot Chat participant unregistered");
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Hermes");
   context.subscriptions.push(outputChannel);
@@ -24,12 +39,19 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("hermes.setup", () => provider.commandSetupWizard()),
   );
 
-  // Register Copilot Chat participant (optional — user can choose in settings)
-  const useCopilotChat = vscode.workspace.getConfiguration("hermes").get<boolean>("useCopilotChat", false);
-  if (useCopilotChat) {
-    registerHermesChatParticipant(context, outputChannel);
-    outputChannel.appendLine("Hermes Copilot Chat participant registered (@hermes)");
-  }
+  // Register/unregister Copilot Chat participant based on setting
+  updateChatParticipant(context, outputChannel);
+
+  // Listen for setting changes
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("hermes.useCopilotChat")) {
+        updateChatParticipant(context, outputChannel);
+      }
+    })
+  );
 }
 
-export function deactivate() {}
+export function deactivate() {
+  participantDisposable?.dispose();
+}
