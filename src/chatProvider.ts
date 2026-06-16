@@ -178,11 +178,17 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   }
 
   async commandSetupWizard(): Promise<void> {
+    const currentMode = vscode.workspace.getConfiguration("hermes").get<boolean>("useCopilotChat", false);
     const items: vscode.QuickPickItem[] = [
       {
         label: "$(check) Check Connection",
         description: "Test if Hermes agent is running",
         detail: "Verifies the executable path and tries to connect",
+      },
+      {
+        label: currentMode ? "$(comment-discussion) Use Webview Panel" : "$(comment-discussion) Use Copilot Chat",
+        description: currentMode ? "Switch to side-panel chat" : "Switch to @hermes in Copilot Chat",
+        detail: currentMode ? "Current: Copilot Chat participant" : "Current: Webview panel",
       },
       {
         label: "$(gear) Configure API Server",
@@ -216,6 +222,10 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     switch (selected.label) {
       case "$(check) Check Connection":
         await this.checkConnection();
+        break;
+      case "$(comment-discussion) Use Webview Panel":
+      case "$(comment-discussion) Use Copilot Chat":
+        await this.toggleCopilotChat(!currentMode);
         break;
       case "$(gear) Configure API Server":
         await this.configureApiServer();
@@ -291,6 +301,19 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     if (models !== undefined) {
       await vscode.workspace.getConfiguration("hermes").update("modelList", models, true);
       vscode.window.showInformationMessage("Model list updated");
+    }
+  }
+
+  private async toggleCopilotChat(enable: boolean): Promise<void> {
+    await vscode.workspace.getConfiguration("hermes").update("useCopilotChat", enable, true);
+    const mode = enable ? "Copilot Chat (@hermes)" : "Webview Panel";
+    const action = await vscode.window.showInformationMessage(
+      `Switched to ${mode}. Reload required to apply.`,
+      "Reload Now",
+      "Later"
+    );
+    if (action === "Reload Now") {
+      vscode.commands.executeCommand("workbench.action.reloadWindow");
     }
   }
 

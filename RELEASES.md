@@ -1,5 +1,9 @@
 # Release Notes
 
+## v0.6.1
+- Add **Chat Mode toggle** to Setup Wizard — switch between Webview Panel and Copilot Chat
+- Reload prompt when switching modes
+
 ## v0.6.0
 - Add **Copilot Chat participant** (`@hermes`) — chat with Hermes directly in GitHub Copilot Chat
   - Enable via `hermes.useCopilotChat` setting (requires reload)
