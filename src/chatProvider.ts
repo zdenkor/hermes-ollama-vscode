@@ -307,14 +307,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   private async toggleCopilotChat(enable: boolean): Promise<void> {
     await vscode.workspace.getConfiguration("hermes").update("useCopilotChat", enable, true);
     const mode = enable ? "Copilot Chat (@hermes)" : "Webview Panel";
-    const action = await vscode.window.showInformationMessage(
-      `Switched to ${mode}. Reload required to apply.`,
-      "Reload Now",
-      "Later"
-    );
-    if (action === "Reload Now") {
-      vscode.commands.executeCommand("workbench.action.reloadWindow");
-    }
+    vscode.window.showInformationMessage(`Switched to ${mode}.`);
   }
 
   private stopAgent(): void {

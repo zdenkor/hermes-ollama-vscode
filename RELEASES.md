@@ -1,5 +1,11 @@
 # Release Notes
 
+## v0.6.2
+- Fix `hermes.useCopilotChat` setting — now works **without reload**
+  - Removed static `chatParticipants` from `package.json` (was always registering)
+  - Participant is now registered/unregistered dynamically when setting changes
+  - Toggle in Setup Wizard applies immediately
+
 ## v0.6.1
 - Add **Chat Mode toggle** to Setup Wizard — switch between Webview Panel and Copilot Chat
 - Reload prompt when switching modes
