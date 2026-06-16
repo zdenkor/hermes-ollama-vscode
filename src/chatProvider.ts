@@ -179,7 +179,6 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
 
   async commandSetupWizard(): Promise<void> {
     const currentCopilotChat = vscode.workspace.getConfiguration("hermes").get<boolean>("useCopilotChat", false);
-    const currentLanguageModel = vscode.workspace.getConfiguration("hermes").get<boolean>("useLanguageModel", false);
     const items: vscode.QuickPickItem[] = [
       {
         label: "$(check) Check Connection",
@@ -190,11 +189,6 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         label: currentCopilotChat ? "$(comment-discussion) Use Webview Panel" : "$(comment-discussion) Use Copilot Chat",
         description: currentCopilotChat ? "Switch to side-panel chat" : "Switch to @hermes in Copilot Chat",
         detail: currentCopilotChat ? "Current: Copilot Chat participant" : "Current: Webview panel",
-      },
-      {
-        label: currentLanguageModel ? "$(symbol-event) Use Webview Panel" : "$(symbol-event) Use Language Model",
-        description: currentLanguageModel ? "Remove Hermes from Copilot dropdown" : "Add Hermes to Copilot Chat model dropdown",
-        detail: currentLanguageModel ? "Current: Language Model provider" : "Current: Not in dropdown",
       },
       {
         label: "$(gear) Configure API Server",
@@ -232,10 +226,6 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       case "$(comment-discussion) Use Webview Panel":
       case "$(comment-discussion) Use Copilot Chat":
         await this.toggleCopilotChat(!currentCopilotChat);
-        break;
-      case "$(symbol-event) Use Webview Panel":
-      case "$(symbol-event) Use Language Model":
-        await this.toggleLanguageModel(!currentLanguageModel);
         break;
       case "$(gear) Configure API Server":
         await this.configureApiServer();

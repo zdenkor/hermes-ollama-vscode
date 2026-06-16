@@ -4,7 +4,6 @@ import { registerHermesChatParticipant } from "./chatParticipant";
 import { HermesLanguageModelProvider } from "./languageModelProvider";
 
 let participantDisposable: vscode.Disposable | undefined;
-let lmProviderDisposable: vscode.Disposable | undefined;
 
 function updateChatParticipant(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
   const useCopilotChat = vscode.workspace.getConfiguration("hermes").get<boolean>("useCopilotChat", false);
@@ -16,20 +15,6 @@ function updateChatParticipant(context: vscode.ExtensionContext, outputChannel: 
     participantDisposable.dispose();
     participantDisposable = undefined;
     outputChannel.appendLine("Hermes Copilot Chat participant unregistered");
-  }
-}
-
-function updateLanguageModelProvider(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
-  const useLanguageModel = vscode.workspace.getConfiguration("hermes").get<boolean>("useLanguageModel", false);
-
-  if (useLanguageModel && !lmProviderDisposable) {
-    const provider = new HermesLanguageModelProvider();
-    lmProviderDisposable = vscode.lm.registerLanguageModelChatProvider("hermes", provider);
-    outputChannel.appendLine("Hermes Language Model provider registered (appears in Copilot Chat dropdown)");
-  } else if (!useLanguageModel && lmProviderDisposable) {
-    lmProviderDisposable.dispose();
-    lmProviderDisposable = undefined;
-    outputChannel.appendLine("Hermes Language Model provider unregistered");
   }
 }
 
@@ -55,11 +40,14 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("hermes.setup", () => provider.commandSetupWizard()),
   );
 
+  // Always register Language Model provider (appears in Copilot Chat dropdown)
+  const lmProvider = new HermesLanguageModelProvider();
+  const lmDisposable = vscode.lm.registerLanguageModelChatProvider("hermes", lmProvider);
+  context.subscriptions.push(lmDisposable);
+  outputChannel.appendLine("Hermes Language Model provider registered (appears in Copilot Chat dropdown)");
+
   // Register/unregister Copilot Chat participant based on setting
   updateChatParticipant(context, outputChannel);
-
-  // Register/unregister Language Model provider based on setting
-  updateLanguageModelProvider(context, outputChannel);
 
   // Listen for setting changes
   context.subscriptions.push(
@@ -67,14 +55,10 @@ export function activate(context: vscode.ExtensionContext) {
       if (e.affectsConfiguration("hermes.useCopilotChat")) {
         updateChatParticipant(context, outputChannel);
       }
-      if (e.affectsConfiguration("hermes.useLanguageModel")) {
-        updateLanguageModelProvider(context, outputChannel);
-      }
     })
   );
 }
 
 export function deactivate() {
   participantDisposable?.dispose();
-  lmProviderDisposable?.dispose();
 }
