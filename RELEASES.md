@@ -1,5 +1,22 @@
 # Release Notes
 
+## v0.6.8
+- **Progress labels in Copilot Chat** — replaced the default `Analyzing` placeholder
+  from the acp-client with informative labels:
+  - `💭 thinking…` while waiting for the model
+  - `⚙️ running tools…` while the agent runs tools
+  - `💭 thinking… <reasoning>` when the agent streams thought chunks (first 40 chars)
+  - Re-issued right before the model call so the label is visible during the
+    longest wait on slow providers (ollama, overseas clouds)
+- **Republished under new publisher** — extension is now `Natadel.hermes-ollama-vscode`
+  (was `hermes.hermes-vscode`).
+  - **If you have the old `hermes.hermes-vscode` installed, uninstall it first** to
+    avoid duplicate toolbar icons. Both extensions register the same view container
+    `hermes`, so they show as two stacked toolbars.
+  - Open the Extensions panel (`Ctrl+Shift+X`), search `Hermes`, uninstall the one
+    published by `hermes` (not `Natadel`), then Reload Window.
+- Display name changed to **Ollama Hermes Agent** to match the new branding.
+
 ## v0.6.5
 - Fix **Language Model provider** API compatibility with VS Code 1.120 types
 - Update VS Code engine requirement to 1.120.0
