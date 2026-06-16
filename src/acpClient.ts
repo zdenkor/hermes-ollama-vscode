@@ -90,7 +90,7 @@ export class AcpClient extends EventEmitter {
     return this.sendRequest("initialize", {
       protocol_version: 1,
       client_capabilities: { promptCapabilities: { image: true } },
-      client_info: { name: "hermes-vscode", version: "0.1.0" },
+      client_info: { name: "hermes-ollama-vscode", version: "0.1.0" },
     });
   }
 
