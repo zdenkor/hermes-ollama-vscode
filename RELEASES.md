@@ -1,5 +1,13 @@
 # Release Notes
 
+## v0.6.0
+- Add **Copilot Chat participant** (`@hermes`) — chat with Hermes directly in GitHub Copilot Chat
+  - Enable via `hermes.useCopilotChat` setting (requires reload)
+  - Slash commands: `/new`, `/cancel`, `/sessions`, `/model`, `/setup`
+  - Streams Hermes responses inline using native Copilot Chat UI
+  - Falls back to webview panel when disabled
+- Keep existing webview panel as default chat interface
+
 ## v0.5.2
 - Update send button icon to match GitHub Copilot chat style
   - Thin stroke-based upward arrow (not filled shape)

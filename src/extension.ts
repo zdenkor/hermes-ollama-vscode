@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { HermesChatProvider } from "./chatProvider";
+import { registerHermesChatParticipant } from "./chatParticipant";
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Hermes");
@@ -22,6 +23,13 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("hermes.chooseModel", () => provider.commandChooseModel()),
     vscode.commands.registerCommand("hermes.setup", () => provider.commandSetupWizard()),
   );
+
+  // Register Copilot Chat participant (optional — user can choose in settings)
+  const useCopilotChat = vscode.workspace.getConfiguration("hermes").get<boolean>("useCopilotChat", false);
+  if (useCopilotChat) {
+    registerHermesChatParticipant(context, outputChannel);
+    outputChannel.appendLine("Hermes Copilot Chat participant registered (@hermes)");
+  }
 }
 
 export function deactivate() {}
