@@ -1,5 +1,12 @@
 # Release Notes
 
+## v0.6.5
+- Fix **Language Model provider** API compatibility with VS Code 1.120 types
+- Update VS Code engine requirement to 1.120.0
+
+## v0.6.4
+- Fix Language Model provider — add missing `package.json` contribution point for `languageModels`
+
 ## v0.6.3
 - Add **Language Model provider** — Hermes appears in Copilot Chat model dropdown
   - New setting `hermes.useLanguageModel` (default: false)
