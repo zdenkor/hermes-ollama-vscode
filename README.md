@@ -24,7 +24,7 @@ Follow the [official installation guide](https://hermes-agent.nousresearch.com/d
 
 Download the latest `.vsix` from [Releases](https://github.com/zdenkor/hermes-ollama-vscode/releases) and run:
 ```bash
-code --install-extension hermes-vscode-x.x.x.vsix
+code --install-extension hermes-ollama-vscode-x.x.x.vsix
 ```
 
 ### 3. Configure Executable Path
