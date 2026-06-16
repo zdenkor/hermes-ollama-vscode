@@ -41,10 +41,14 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Always register Language Model provider (appears in Copilot Chat dropdown)
-  const lmProvider = new HermesLanguageModelProvider();
-  const lmDisposable = vscode.lm.registerLanguageModelChatProvider("hermes", lmProvider);
-  context.subscriptions.push(lmDisposable);
-  outputChannel.appendLine("Hermes Language Model provider registered (appears in Copilot Chat dropdown)");
+  try {
+    const lmProvider = new HermesLanguageModelProvider();
+    const lmDisposable = vscode.lm.registerLanguageModelChatProvider("hermes", lmProvider);
+    context.subscriptions.push(lmDisposable);
+    outputChannel.appendLine("Hermes Language Model provider registered (appears in Copilot Chat dropdown)");
+  } catch (err: any) {
+    outputChannel.appendLine(`Failed to register Language Model provider: ${err.message}`);
+  }
 
   // Register/unregister Copilot Chat participant based on setting
   updateChatParticipant(context, outputChannel);
