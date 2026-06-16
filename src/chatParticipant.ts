@@ -87,7 +87,7 @@ function stopAgent(): void {
   globalTurnInProgress = false;
 }
 
-export function registerHermesChatParticipant(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
+export function registerHermesChatParticipant(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel): vscode.Disposable {
   const participant = vscode.chat.createChatParticipant("hermes.agent", async (request, _context, stream, token) => {
     const command = request.command;
 
@@ -195,5 +195,5 @@ export function registerHermesChatParticipant(context: vscode.ExtensionContext, 
 
   participant.iconPath = vscode.Uri.joinPath(context.extensionUri, "media", "icon.svg");
 
-  context.subscriptions.push(participant);
+  return participant;
 }
