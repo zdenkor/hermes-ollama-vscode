@@ -3,7 +3,7 @@
   "displayName": "Ollama Hermes Agent",
   "description": "Chat with Hermes Agent in VS Code via Ollama. Uses ACP protocol — full agent with tools, memory, and skills.",
   "version": "0.6.5",
-  "publisher": "hermes",
+  "publisher": "Natadel",
   "repository": "https://github.com/zdenkor/hermes-ollama-vscode",
   "license": "MIT",
   "engines": {
