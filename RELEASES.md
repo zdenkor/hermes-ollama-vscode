@@ -1,5 +1,13 @@
 # Release Notes
 
+## v0.6.3
+- Add **Language Model provider** — Hermes appears in Copilot Chat model dropdown
+  - New setting `hermes.useLanguageModel` (default: false)
+  - Toggle in Setup Wizard: "Use Language Model"
+  - When enabled, Hermes shows as a model choice alongside GPT-4, Claude, etc.
+  - Streams responses through native Copilot Chat UI
+- Update VS Code engine requirement to 1.90.0 (for `lm` API)
+
 ## v0.6.2
 - Fix `hermes.useCopilotChat` setting — now works **without reload**
   - Removed static `chatParticipants` from `package.json` (was always registering)
