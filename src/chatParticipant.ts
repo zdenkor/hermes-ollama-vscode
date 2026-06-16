@@ -150,6 +150,11 @@ export function registerHermesChatParticipant(context: vscode.ExtensionContext, 
     }
 
     // Normal chat message
+    // Show a progress label during the cold-start / model-thinking wait so the
+    // acp-client's default "Analyzing" placeholder becomes something useful.
+    // We update progress as the turn moves through phases.
+    stream.progress("💭 thinking…");
+
     const agent = await ensureAgent(outputChannel);
     if (!agent) {
       stream.markdown("❌ Hermes is not running. Check `hermes.executable` in Settings.\n");
@@ -171,6 +176,15 @@ export function registerHermesChatParticipant(context: vscode.ExtensionContext, 
           chunks.push(text);
           stream.markdown(text);
         }
+      } else if (type === "tool_call" || type === "tool_call_update") {
+        // Switch the progress label once the agent starts running tools.
+        stream.progress("⚙️ running tools…");
+      } else if (type === "agent_thought_chunk") {
+        // Provider is streaming reasoning tokens — surface that we're thinking.
+        const text = update.content?.text as string;
+        if (text) {
+          stream.progress(`💭 thinking… ${text.slice(0, 40).replace(/\s+/g, " ")}…`);
+        }
       }
     };
 
@@ -184,6 +198,10 @@ export function registerHermesChatParticipant(context: vscode.ExtensionContext, 
     });
 
     try {
+      // Re-issue the progress label right before the model call — this is the
+      // longest wait on slow providers (ollama / overseas clouds), and we want
+      // a clear label rather than the acp-client default during it.
+      stream.progress("💭 thinking…");
       await globalClient!.prompt(globalSessionId!, request.prompt);
     } catch (err: any) {
       stream.markdown(`\n\n❌ Error: ${err.message}\n`);
