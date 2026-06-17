@@ -1,5 +1,13 @@
 # Release Notes
 
+## v0.6.9
+- **Auto-resolve Hermes executable path** — the extension now automatically locates `hermes` in your system `PATH` when the setting is left as the default (`"hermes"`).
+  - Uses `where hermes` (Windows) or `which hermes` (macOS/Linux) to find the binary.
+  - If a full path is configured, it is validated before use.
+  - Fixes `spawn C:/Users/.../hermes.exe ENOENT` errors caused by the previous hardcoded default path.
+- **Default executable changed** — `hermes.executable` now defaults to `"hermes"` instead of a developer-specific Windows path.
+- **Updated README** — added official Ollama installation instructions (`ollama launch hermes`), manual setup steps, and a `hermes --version` verification check.
+
 ## v0.6.8
 - **Progress labels in Copilot Chat** — replaced the default `Analyzing` placeholder
   from the acp-client with informative labels:

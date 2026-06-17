@@ -18,24 +18,49 @@ Chat with [Hermes Agent](https://hermes-agent.nousresearch.com/) directly in VS 
 
 ### 1. Install Hermes Agent
 
-Follow the [official installation guide](https://hermes-agent.nousresearch.com/docs/getting-started/installation).
-
-### 2. Install Extension
-
-Download the latest `.vsix` from [Releases](https://github.com/zdenkor/hermes-ollama-vscode/releases) and run:
+**Option A — via Ollama (recommended):**
 ```bash
-code --install-extension hermes-ollama-vscode-x.x.x.vsix
+ollama launch hermes
 ```
+Ollama will prompt to install Hermes automatically if it isn't already.
 
-### 3. Configure Executable Path
+**Option B — manual install:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+```
+Then run the setup wizard:
+```bash
+hermes setup
+```
+Choose **Quick setup** and select **Ollama** as the provider. When asked for the API base URL, enter:
+```
+http://127.0.0.1:11434/v1
+```
+Leave the API key blank. Hermes will auto-detect your downloaded models.
 
-Open VS Code Settings (Ctrl+,) and search for "hermes executable". Set the path to your `hermes.exe` (Windows) or `hermes` binary (macOS/Linux).
+### 2. Verify Installation
 
-**Default Windows:** `C:/Users/{username}/AppData/Local/hermes/hermes-agent/venv/Scripts/hermes.exe`
+Run this in your terminal to confirm Hermes is installed and working:
+```bash
+hermes --version
+```
+If the command is not found, make sure the install finished and your shell was restarted (or run `source ~/.bashrc` / `source ~/.zshrc`).
+
+### 3. Install Extension
+
+Install **Ollama Hermes Agent** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Natadel.hermes-ollama-vscode) or directly inside VS Code:
+
+1. Open the Extensions view (`Ctrl+Shift+X`)
+2. Search for **"Ollama Hermes Agent"**
+3. Click **Install**
+
+> Sources are available on [GitHub](https://github.com/zdenkor/hermes-ollama-vscode). If you run into any issues, please [report them here](https://github.com/zdenkor/hermes-ollama-vscode/issues).
 
 ### 4. Open Hermes Chat
 
-Click the Hermes icon in the Activity Bar (left sidebar) to open the chat panel.
+Click the Hermes icon in the Activity Bar (left sidebar) to open the chat panel. The extension will automatically locate `hermes` in your `PATH` and start the agent.
+
+> **Tip:** If you see `spawn hermes ENOENT`, Hermes is not in your `PATH`. Set the full path manually in VS Code Settings → `hermes.executable`.
 
 ## Setup Wizard
 

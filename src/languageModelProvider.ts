@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { AcpClient, AcpNotification } from "./acpClient";
+import { resolveHermesExecutable } from "./utils";
 
 let globalClient: AcpClient | undefined;
 let globalSessionId: string | undefined;
@@ -18,7 +19,8 @@ async function ensureAgent(): Promise<{ client: AcpClient; sessionId: string } |
   globalSessionId = undefined;
   globalTurnInProgress = false;
 
-  const executable = vscode.workspace.getConfiguration("hermes").get<string>("executable") || "hermes";
+  const configured = vscode.workspace.getConfiguration("hermes").get<string>("executable") || "hermes";
+  const executable = resolveHermesExecutable(configured);
   const cwd = vscode.workspace.getConfiguration("hermes").get<string>("defaultCwd") ||
     vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ||
     process.cwd();
