@@ -121,6 +121,7 @@ Set `hermes.modelList` in VS Code settings:
 | `hermes.useCopilotChat` | Enable `@hermes` participant in Copilot Chat |
 | `hermes.useLanguageModel` | Show Hermes in Copilot Chat model dropdown |
 | `hermes.logTraffic` | Log ACP protocol traffic to output panel for debugging |
+| `hermes.safetyTimeout` | Safety timeout in minutes (1–60). Resets the UI if the server stops responding. Default: **5** |
 
 ## Commands
 
