@@ -399,7 +399,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       this.sessionId = loadedSessionId || (session.result && typeof session.result === "object" ? (session.result as any).sessionId : undefined);
 
       this.postStatus("");
-      this.postMessage("system", `Hermes ready â€” session ${this.sessionId?.slice(0, 8)}...`);
+      this.postMessage("system", `Hermes ready -- session ${this.sessionId?.slice(0, 8)}...`);
     } catch (err: any) {
       this.outputChannel.appendLine(`Connection error: ${err.message}`);
       this.postError(`Connection failed: ${err.message}`);
@@ -641,14 +641,51 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     gap: 6px;
     padding: 8px 12px;
     font-size: 0.9em;
-    color: color-mix(in srgb, var(--fg) 60%, transparent);
-    background: color-mix(in srgb, var(--accent) 8%, var(--bg));
-    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-    border-radius: 6px;
-    margin: 4px 0;
+    background: color-mix(in srgb, var(--bg-elev) 60%, transparent);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    color: var(--fg);
     position: sticky;
     bottom: 0;
     z-index: 10;
+  }
+
+  /* CSS-painted icon -- no emoji font dependency, renders identically
+     on every system. .icon-thinking is a pulsing dot, .icon-tools is a
+     spinning gear built from CSS borders. */
+  .thinking-icon {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+    display: inline-block;
+  }
+  .thinking-icon.icon-thinking {
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 var(--accent);
+    animation: think-pulse 1.2s ease-out infinite;
+  }
+  .thinking-icon.icon-tools {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    background: transparent;
+  }
+  @keyframes think-pulse {
+    0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--accent) 60%, transparent); }
+    70%  { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 0%,  transparent); }
+    100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--accent) 0%,  transparent); }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .thinking-label {
+    color: var(--fg);
+    opacity: 0.85;
   }
 
   .thinking .dot {
@@ -820,17 +857,58 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       cancelBtn.style.display = active ? 'block' : 'none';
 
       if (active) {
+        // Safety net: if the server never sends thinking-end AND no
+        // assistant-stream chunk arrives (e.g. network drop, server crash),
+        // force the indicator off after 5 minutes so the UI is recoverable.
+        // The user can re-prompt after that.
+        if (setThinking._safetyTimer) clearTimeout(setThinking._safetyTimer);
+        setThinking._safetyTimer = setTimeout(() => {
+          if (thinking) {
+            setThinking(false);
+            addMessage('error', 'Turn timed out after 5 min -- UI reset. You can send a new prompt.');
+          }
+        }, 5 * 60 * 1000);
         const el = document.createElement('div');
         el.className = 'thinking';
         el.id = 'thinking-indicator';
-        el.innerHTML = '<span>Hermes is thinking</span><span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+        // Use CSS-painted icons (no emoji) for consistent rendering across
+        // all systems and font configurations. The label is updated in place
+        // by setThinkingPhase as the agent moves between phases.
+        el.innerHTML = '<span class="thinking-icon"></span><span class="thinking-label">thinking</span><span class="dot"></span><span class="dot"></span><span class="dot"></span>';
         messagesEl.appendChild(el);
         // Scroll to ensure thinking indicator is visible
         el.scrollIntoView({ behavior: 'smooth', block: 'end' });
         scrollBottom();
       } else {
+        if (setThinking._safetyTimer) {
+          clearTimeout(setThinking._safetyTimer);
+          setThinking._safetyTimer = null;
+        }
         const el = document.getElementById('thinking-indicator');
         if (el) el.remove();
+      }
+    }
+
+    // Update the thinking indicator's text and icon without recreating
+    // the element (so the animated dots keep their smooth state). Called
+    // when the agent moves into a new phase -- tool call, response
+    // streaming, etc.
+    //
+    // Phase is one of: 'thinking' | 'tools' | toolname (string)
+    function setThinkingPhase(label) {
+      const el = document.getElementById('thinking-indicator');
+      if (!el) return;
+      const labelEl = el.querySelector('.thinking-label');
+      const iconEl = el.querySelector('.thinking-icon');
+      if (!labelEl || !iconEl) return;
+      // Detect phase from the label string. Tools phase starts with the
+      // gear character we use for it; everything else is "thinking".
+      if (label.indexOf('GEAR') === 0) {
+        iconEl.className = 'thinking-icon icon-tools';
+        labelEl.textContent = label.substring(4).trim();
+      } else {
+        iconEl.className = 'thinking-icon icon-thinking';
+        labelEl.textContent = label;
       }
     }
 
@@ -898,6 +976,13 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         case 'message':
           // Handle stream concatenation
           if (msg.kind === 'assistant-stream') {
+            // First model chunk = turn has started producing output. If the
+            // thinking indicator is still on screen (no thinking-end arrived
+            // because the model went straight to text), hide it now so the
+            // cancel button disappears and the indicator stops animating.
+            if (document.getElementById('thinking-indicator')) {
+              setThinking(false);
+            }
             if (!currentStreamEl) {
               currentStreamEl = addMessage('assistant-stream', '');
             }
@@ -909,6 +994,19 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
           } else if (msg.kind === 'thinking-end') {
             setThinking(false);
             currentStreamEl = null;
+          } else if (msg.kind === 'tool-start') {
+            // Switch the indicator to "running <tool>..." but keep the dots
+            // animating. setThinking(true) was already called at thinking-start;
+            // we just relabel here.
+            // Prefix "GEAR" tells setThinkingPhase which icon to show.
+            // Single-quote concat to avoid clashing with the outer template
+            // literal that wraps the entire <script> block.
+            setThinkingPhase('GEAR running ' + (msg.content && msg.content.name ? msg.content.name : 'tool') + '...');
+          } else if (msg.kind === 'tool-end') {
+            // Tool finished -- switch back to "thinking" while we wait for
+            // the model to produce more text (next agent_message_chunk will
+            // end the indicator).
+            setThinkingPhase('thinking...');
           } else {
             currentStreamEl = null;
             addMessage(msg.kind, msg.content);

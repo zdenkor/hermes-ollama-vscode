@@ -1,5 +1,11 @@
 # Release Notes
 
+## v0.7.2
+- **Thinking indicator uses CSS icons, not emoji** — replaced `💭` and `⚙️` with CSS-painted icons (pulsing dot for thinking, spinning gear for tools) so the indicator renders identically on every system regardless of installed emoji fonts. Added a card-style background, border, and border-radius for visual separation from the messages.
+- **Cancel button no longer gets stuck** — the inline thinking indicator (and the cancel button that shows with it) now hides as soon as the first `assistant-stream` chunk arrives, not just when the server sends `thinking-end`. The previous behavior left the cancel button visible on every completed turn.
+- **5-minute safety timeout** — if the server never sends `thinking-end` and no model output ever arrives, the UI auto-resets after 5 minutes with an error message instead of staying stuck.
+- **Fix `Hermes ready â€" session...` mojibake** — replaced the UTF-8 em-dash in the "Hermes ready" status line (which was being read as latin-1 garbage on some terminals) with ASCII `--`. The line now reads `Hermes ready -- session 35e207f3...`.
+
 ## v0.7.0
 - **Add Marketplace icon** — added `media/icon.png` (128×128) for the VS Code Marketplace listing page. The existing `media/icon.svg` is still used for the in-editor Activity Bar icon.
 
