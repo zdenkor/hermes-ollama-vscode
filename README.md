@@ -120,8 +120,8 @@ Set `hermes.modelList` in VS Code settings:
 | `hermes.apiServerKey` | API server bearer token. Set in **User settings** for security |
 | `hermes.useCopilotChat` | Enable `@hermes` participant in Copilot Chat |
 | `hermes.useLanguageModel` | Show Hermes in Copilot Chat model dropdown |
-| `hermes.logTraffic` | Log ACP protocol traffic to output panel for debugging |
-| `hermes.safetyTimeout` | Safety timeout in minutes (1–60). Resets the UI if the server stops responding. Default: **5** |
+| `hermes.logLevel` | Verbosity of the Hermes output channel: `silent` \| `minimal` \| `standard` \| `debug`. Default: `standard` |
+| `hermes.editApprovalPolicy` | How the agent handles file edit approvals: `accept_edits` \| `dont_ask` \| `ask`. Default: `accept_edits` |
 
 ## Commands
 
@@ -196,8 +196,8 @@ In the chat input, type:
 3. Try reloading VS Code
 
 ### Connection errors
-- Enable `hermes.logTraffic` to see ACP messages
-- Check Hermes Output channel for details
+- Set `hermes.logLevel` to `debug` to see full ACP JSON-RPC traffic
+- Check Hermes Output channel for details (View → Output → Hermes)
 
 ## Links
 

@@ -2,7 +2,7 @@
   "name": "hermes-ollama-vscode",
   "displayName": "Ollama Hermes Agent",
   "description": "Chat with Hermes Agent in VS Code via Ollama. Uses ACP protocol — full agent with tools, memory, and skills.",
-  "version": "0.7.2",
+  "version": "0.8.3",
   "publisher": "Natadel",
   "icon": "media/icon.png",
   "repository": "https://github.com/zdenkor/hermes-ollama-vscode",
@@ -135,10 +135,22 @@
           "default": "",
           "description": "Default working directory for agent sessions"
         },
-        "hermes.logTraffic": {
-          "type": "boolean",
-          "default": true,
-          "description": "Log ACP protocol traffic to output"
+        "hermes.logLevel": {
+          "type": "string",
+          "enum": [
+            "silent",
+            "minimal",
+            "standard",
+            "debug"
+          ],
+          "enumDescriptions": [
+            "No log output.",
+            "Errors and connection lifecycle events only.",
+            "Session events, model changes, stderr (DEFAULT).",
+            "Full JSON-RPC traffic, every stream chunk, all internals."
+          ],
+          "default": "standard",
+          "description": "Verbosity of the Hermes output channel. 'standard' (default) shows session events without spamming. 'silent' hides everything. 'debug' shows the full JSON-RPC traffic between VS Code and the Hermes agent."
         },
         "hermes.model": {
           "type": "string",
@@ -147,8 +159,23 @@
         },
         "hermes.modelList": {
           "type": "string",
-          "default": "deepseek-v4-pro:cloud,deepseek-v4-pro:local,llama3.2:latest,qwen2.5:latest",
+          "default": "deepseek-v4-pro:cloud,deepseek-v4-flash:cloud,kimi-k2.6:cloud,minimax-m3:cloud,qwen3-coder-next:cloud",
           "description": "Comma-separated list of available models for selection"
+        },
+        "hermes.editApprovalPolicy": {
+          "type": "string",
+          "enum": [
+            "accept_edits",
+            "dont_ask",
+            "ask"
+          ],
+          "enumDescriptions": [
+            "Auto-allow workspace and /tmp edits; still asks for sensitive paths. Recommended.",
+            "Auto-allow all file edits in this session except sensitive paths.",
+            "Ask before every edit (default in hermes, will time out in vscode acp integration)."
+          ],
+          "default": "accept_edits",
+          "description": "How the agent should handle file edit approvals. 'accept_edits' (default) auto-approves workspace and /tmp edits so the agent can actually work without 60s timeouts. 'dont_ask' is more permissive. 'ask' will likely hang in vscode."
         },
         "hermes.apiServerUrl": {
           "type": "string",

@@ -1,10 +1,28 @@
 # Release Notes
 
-## v0.7.2
-- **Thinking indicator uses CSS icons, not emoji** — replaced `💭` and `⚙️` with CSS-painted icons (pulsing dot for thinking, spinning gear for tools) so the indicator renders identically on every system regardless of installed emoji fonts. Added a card-style background, border, and border-radius for visual separation from the messages.
-- **Cancel button no longer gets stuck** — the inline thinking indicator (and the cancel button that shows with it) now hides as soon as the first `assistant-stream` chunk arrives, not just when the server sends `thinking-end`. The previous behavior left the cancel button visible on every completed turn.
-- **5-minute safety timeout** — if the server never sends `thinking-end` and no model output ever arrives, the UI auto-resets after 5 minutes with an error message instead of staying stuck.
-- **Fix `Hermes ready â€" session...` mojibake** — replaced the UTF-8 em-dash in the "Hermes ready" status line (which was being read as latin-1 garbage on some terminals) with ASCII `--`. The line now reads `Hermes ready -- session 35e207f3...`.
+## v0.8.3
+- **Log levels** — replaced the dead `hermes.logTraffic` setting with `hermes.logLevel` (`silent` | `minimal` | `standard` | `debug`). Default is `standard` which shows session events without spamming the output channel. Use `debug` to see full JSON-RPC traffic between VS Code and the Hermes agent.
+- **Setup wizard → Set Log Level** — quickpick to change the log level without editing settings.json.
+- Large JSON dumps in the output channel are now truncated to 500 chars at standard level, with a hint pointing to `debug` for full output.
+
+## v0.8.2
+- **Sessions list shows which model was used** — the session history quickpick now shows the model name in the detail line for every session you started from this extension. Recorded in `globalState` per session id.
+- **CSS-painted thinking indicator** — replaced the `💭` / `⚙️` emoji icons with pure CSS (pulsing dot for thinking, spinning gear for running tools) so the indicator renders identically on every system regardless of installed emoji fonts.
+- **Cancel button no longer gets stuck** — the inline thinking indicator (and the cancel button) now hides as soon as the first model chunk arrives, not just when the server sends `thinking-end`.
+- **5-minute safety timeout** — if the server never sends `thinking-end` and no model output ever arrives, the UI auto-resets with an error message instead of staying stuck.
+- **Fix `Hermes ready — session...` mojibake** — replaced the UTF-8 em-dash with ASCII `--` so the status line renders cleanly everywhere.
+
+## v0.8.1
+- **Model change actually works** — fixed a bug where the `commandChooseModel` flow set `hermes.model` correctly but the new session was created with `params.model = "..."`, which is not a valid ACP `NewSessionRequest` field. The server silently dropped it and the new session always used hermes's default model. Now uses the proper `session/set_model` RPC.
+- **Setup wizard → Change Active Model** — new entry that calls the model picker. Previously only the circuit-board icon could change the model.
+- **Model picker works before first prompt** — `commandChooseModel` now auto-starts the agent if not connected, instead of bailing with "Not connected to agent".
+
+## v0.8.0
+- **Edit approval policy** — the agent was hanging for 60s on every file edit because `vscode.acp.autoApprovePermissions` doesn't cover the edit-approval flow. Now the extension calls `session/set_config_option` after every session start to flip the policy to `workspace_session` (= `accept_edits` mode = auto-allow workspace and /tmp edits; still asks for sensitive paths).
+- **New setting `hermes.editApprovalPolicy`** — `accept_edits` (default) | `dont_ask` | `ask`. Switch to `ask` if you want the strict flow (and a 60s hang in this client).
+
+## v0.7.1
+- **Surface agent progress in Copilot Chat** — `stream.progress()` calls during the prompt turn show the phase instead of vscode's default `Analyzing` placeholder. Labels: `💭 thinking…` (default), `⚙️ running tools…` (while a tool runs), `💭 thinking… <reasoning>` (when the provider streams a thought chunk).
 
 ## v0.7.0
 - **Add Marketplace icon** — added `media/icon.png` (128×128) for the VS Code Marketplace listing page. The existing `media/icon.svg` is still used for the in-editor Activity Bar icon.

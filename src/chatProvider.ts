@@ -8,6 +8,13 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   private sessionId?: string;
   private turnInProgress = false;
   private executable: string;
+  // sessionId -> model name. Populated every time we successfully call
+  // setSessionModel() so the sessions list quickpick can show which
+  // model each session used. Persisted in globalState across restarts.
+  private sessionModels: Record<string, string> = {};
+  // Log level. Read at log() call time, not at construction, so the
+  // setting can be changed without restarting the extension.
+  private logLevel: "silent" | "minimal" | "standard" | "debug" = "standard";
   private outputChannel: vscode.OutputChannel;
 
   constructor(private context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
@@ -16,6 +23,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       .get<string>("executable") || "hermes";
     this.executable = resolveHermesExecutable(configured);
     this.outputChannel = outputChannel;
+    this.sessionModels = this.loadSessionModels();
   }
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
@@ -64,12 +72,12 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  async commandNewSession(): Promise<void> {
+  async commandNewSession(forceNew = true): Promise<void> {
     if (this.turnInProgress) return;
     this.stopAgent();
     this.updateWebviewMessages([]);
     this.postStatus("Starting new session...");
-    await this.ensureAgent();
+    await this.ensureAgent(undefined, forceNew);
   }
 
   commandRestartAgent(): void {
@@ -96,12 +104,18 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         vscode.window.showInformationMessage("No sessions found");
         return;
       }
-      const items: (vscode.QuickPickItem & { sessionId: string })[] = sessions.map((s: any) => ({
-        label: s.title || "Untitled",
-        description: s.sessionId?.slice(0, 8),
-        detail: s.cwd,
-        sessionId: s.sessionId,
-      }));
+      const items: (vscode.QuickPickItem & { sessionId: string })[] = sessions.map((s: any) => {
+        const model = this.sessionModels[s.sessionId];
+        const modelLabel = model ? `$(circuit-board) ${model}` : "$(circuit-board) (model unknown)";
+        return {
+          label: s.title || "Untitled",
+          description: s.sessionId?.slice(0, 8),
+          detail: model
+            ? `${s.cwd}  —  ${modelLabel}`
+            : `${s.cwd}  —  ${modelLabel}  (set from this client to record model)`,
+          sessionId: s.sessionId,
+        };
+      });
       const selected = await vscode.window.showQuickPick(items, {
         placeHolder: "Select a session to resume",
       });
@@ -122,22 +136,53 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   }
 
   async commandChooseModel(): Promise<void> {
+    // Ensure the agent is running so the user can pick a model even
+    // before sending the first prompt. (Previously this bailed with
+    // "Not connected to agent" if no session was active yet.)
     if (!this.client || !this.sessionId) {
-      this.postError("Not connected to agent");
-      return;
+      await this.ensureAgent(undefined, true);
+      if (!this.client || !this.sessionId) {
+        this.postError("Could not start Hermes to pick a model. Check the executable path in Settings.");
+        return;
+      }
     }
-    
+
     this.postStatus("Fetching available models...");
-    
+
     try {
       let models: { label: string; description: string; picked?: boolean }[] = [];
       
-      // Try Ollama API first (local models)
+      // Try the Hermes API server /v1/models first (cloud models via ollama-launch).
+      // Falls back to local Ollama /api/tags, then to hermes.modelList setting.
+      const apiUrl = vscode.workspace.getConfiguration("hermes").get<string>("apiServerUrl", "");
+      const apiKey = vscode.workspace.getConfiguration("hermes").get<string>("apiServerKey", "");
+      if (apiUrl) {
+        try {
+          const headers: Record<string, string> = {};
+          if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+          const apiResp = await fetch(`${apiUrl.replace(/\/$/, "")}/v1/models`, { headers });
+          if (apiResp.ok) {
+            const apiData = await apiResp.json() as any;
+            this.log("standard", `[ModelList] API server response: ${this.dumpJson(apiData)}`);
+            const list = apiData?.data || apiData?.models || [];
+            if (Array.isArray(list)) {
+              for (const m of list) {
+                const id = m.id || m.name || "";
+                if (id) models.push({ label: id, description: "api server" });
+              }
+            }
+          }
+        } catch (apiErr: any) {
+          this.log("minimal", `[ModelList] API server error: ${apiErr.message}`);
+        }
+      }
+
+      // Try Ollama API (local models)
       try {
         const ollamaResponse = await fetch("http://127.0.0.1:11434/api/tags");
         if (ollamaResponse.ok) {
           const ollamaData = await ollamaResponse.json() as any;
-          this.outputChannel.appendLine(`[ModelList] Ollama response: ${JSON.stringify(ollamaData).slice(0, 500)}`);
+          this.log("standard", `[ModelList] Ollama response: ${this.dumpJson(ollamaData)}`);
           
           if (ollamaData.models && Array.isArray(ollamaData.models)) {
             for (const model of ollamaData.models) {
@@ -152,7 +197,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
           }
         }
       } catch (ollamaErr: any) {
-        this.outputChannel.appendLine(`[ModelList] Ollama error: ${ollamaErr.message}`);
+        this.log("minimal", `[ModelList] Ollama error: ${ollamaErr.message}`);
       }
       
       // Fallback to hermes.modelList setting
@@ -172,7 +217,12 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       });
       
       if (selected) {
-        await this.handleUserInput("/model " + selected.label);
+        const pick = selected.label;
+        await vscode.workspace
+          .getConfiguration("hermes")
+          .update("model", pick, vscode.ConfigurationTarget.Global);
+        this.postMessage("system", `Model set to ${pick}. Starting new session to apply...`);
+        await this.commandNewSession(true);
       }
     } catch (e: any) {
       this.postError(`Failed: ${e.message}`);
@@ -201,6 +251,16 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         label: "$(list-flat) Set Model List",
         description: "Configure available models manually",
         detail: "Edit hermes.modelList setting",
+      },
+      {
+        label: "$(output) Set Log Level",
+        description: "Control verbosity of the Hermes output channel",
+        detail: `Current: ${vscode.workspace.getConfiguration("hermes").get<string>("logLevel", "standard")}`,
+      },
+      {
+        label: "$(circuit-board) Change Active Model",
+        description: "Pick which model Hermes uses right now",
+        detail: "Choose from API server, Ollama, or your model list",
       },
       {
         label: "$(terminal) Open Hermes Terminal",
@@ -234,6 +294,12 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         break;
       case "$(list-flat) Set Model List":
         await this.configureModelList();
+        break;
+      case "$(output) Set Log Level":
+        await this.configureLogLevel();
+        break;
+      case "$(circuit-board) Change Active Model":
+        await this.commandChooseModel();
         break;
       case "$(terminal) Open Hermes Terminal":
         vscode.commands.executeCommand("workbench.action.terminal.new");
@@ -306,6 +372,34 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private async configureLogLevel(): Promise<void> {
+    const current = this.getLogLevel();
+    const levels: Array<{
+      id: "silent" | "minimal" | "standard" | "debug";
+      label: string;
+      description: string;
+    }> = [
+      { id: "silent",   label: "Silent",   description: "No log output at all." },
+      { id: "minimal",  label: "Minimal",  description: "Errors and connection lifecycle events only." },
+      { id: "standard", label: "Standard", description: "Session events, model changes, stderr. (Default)" },
+      { id: "debug",    label: "Debug",    description: "Full JSON-RPC traffic, every stream chunk, all internals." },
+    ];
+    const items = levels.map((l) => ({
+      label: l.label + (l.id === current ? "  $(check)" : ""),
+      description: l.description,
+      id: l.id,
+    }));
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: `Current log level: ${current}`,
+    });
+    if (selected) {
+      await vscode.workspace.getConfiguration("hermes").update("logLevel", selected.id, true);
+      vscode.window.showInformationMessage(`Log level set to: ${selected.id}`);
+      // Emit a one-liner at the new level so the user sees the change took effect.
+      this.log("minimal", `Log level changed to: ${selected.id}`);
+    }
+  }
+
   private async toggleCopilotChat(enable: boolean): Promise<void> {
     await vscode.workspace.getConfiguration("hermes").update("useCopilotChat", enable, true);
     const mode = enable ? "Copilot Chat (@hermes)" : "Webview Panel";
@@ -337,7 +431,65 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     this.context.globalState.update("commandHistory", history);
   }
 
-  private async ensureAgent(resumeSessionId?: string): Promise<void> {
+  private loadSessionModels(): Record<string, string> {
+    return this.context.globalState.get<Record<string, string>>("sessionModels", {});
+  }
+
+  private saveSessionModels(): void {
+    // Prune entries older than 200 to keep the blob small. Sessions we
+    // remember today are mostly the recent ones anyway.
+    const entries = Object.entries(this.sessionModels);
+    if (entries.length > 200) {
+      this.sessionModels = Object.fromEntries(entries.slice(-200));
+    }
+    this.context.globalState.update("sessionModels", this.sessionModels);
+  }
+
+  /**
+   * Resolved log level from the `hermes.logLevel` setting. Reads the
+   * setting every call so the user can change it live without restarting
+   * the extension.
+   */
+  private getLogLevel(): "silent" | "minimal" | "standard" | "debug" {
+    const raw = vscode.workspace.getConfiguration("hermes").get<string>("logLevel", "standard");
+    if (raw === "silent" || raw === "minimal" || raw === "standard" || raw === "debug") {
+      return raw;
+    }
+    return "standard";
+  }
+
+  /**
+   * Log a message to the Hermes output channel at the given level.
+   * Levels (ascending verbosity):
+   *   silent   - nothing
+   *   minimal  - errors, connection lifecycle, session start/stop
+   *   standard - + session creation, model/policy set, model-list events (DEFAULT)
+   *   debug    - + every JSON-RPC send/receive, every stream chunk, all acp client internals
+   *
+   * Always logs errors regardless of level (minimal+).
+   */
+  private log(level: "minimal" | "standard" | "debug", message: string): void {
+    const current = this.getLogLevel();
+    if (current === "silent") return;
+    const order = { minimal: 0, standard: 1, debug: 2 } as const;
+    if (order[level] > order[current]) return;
+    this.outputChannel.appendLine(`[${level}] ${message}`);
+  }
+
+  /**
+   * Compact JSON dump for log lines. At standard level, truncates to
+   * 500 chars so the output channel stays readable. At debug, dumps
+   * the full payload.
+   */
+  private dumpJson(value: unknown, maxChars = 500): string {
+    const level = this.getLogLevel();
+    const json = JSON.stringify(value);
+    if (level === "debug") return json;
+    if (json.length <= maxChars) return json;
+    return json.slice(0, maxChars) + ` ... [truncated ${json.length - maxChars} chars; set hermes.logLevel=debug for full output]`;
+  }
+
+  private async ensureAgent(resumeSessionId?: string, forceNewSession = false): Promise<void> {
     if (this.client?.isRunning() && this.sessionId) return;
 
     this.stopAgent();
@@ -348,21 +500,21 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ||
       process.cwd();
 
-    this.outputChannel.appendLine(`CWD: ${cwd}`);
-    this.outputChannel.appendLine(`Executable: ${this.executable}`);
+    this.log("minimal", `CWD: ${cwd}`);
+    this.log("minimal", `Executable: ${this.executable}`);
 
     this.client = new AcpClient(this.executable);
     this.setupClientHandlers();
 
     this.postStatus("Starting Hermes...");
-    this.outputChannel.appendLine("Starting Hermes agent...");
+    this.log("minimal", "Starting Hermes agent...");
 
     this.client.start();
-    this.outputChannel.appendLine("Client started, waiting for initialize...");
+    this.log("debug", "Client started, waiting for initialize...");
 
     try {
       const init = await this.client.initialize();
-      this.outputChannel.appendLine(`Initialize response: ${JSON.stringify(init)}`);
+      this.log("standard", `Initialize response: ${this.dumpJson(init)}`);
       if (init.error) {
         this.postError(`Failed to initialize: ${init.error.message}`);
         return;
@@ -370,7 +522,12 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
 
       let session;
       let loadedSessionId: string | undefined;
-      if (resumeSessionId) {
+      if (forceNewSession) {
+        // Force a fresh session (e.g. after a model change). Skip auto-resume.
+        const model = vscode.workspace.getConfiguration("hermes").get<string>("model") || undefined;
+        this.log("standard", `Force new session with model: ${model || "(default)"}`);
+        session = await this.client.newSession(cwd, model);
+      } else if (resumeSessionId) {
         // Try to resume a specific session
         loadedSessionId = resumeSessionId;
         session = await this.client.loadSession(resumeSessionId, cwd);
@@ -386,7 +543,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
           const model = vscode.workspace.getConfiguration("hermes").get<string>("model") || undefined; session = await this.client.newSession(cwd, model);
         }
       }
-      this.outputChannel.appendLine(`Session response: ${JSON.stringify(session)}`);
+      this.log("standard", `Session response: ${this.dumpJson(session)}`);
       if (session.error) {
         // Fall back to creating new session
         session = await this.client.newSession(cwd);
@@ -398,10 +555,61 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       // Use the loaded session ID if available, otherwise get from result
       this.sessionId = loadedSessionId || (session.result && typeof session.result === "object" ? (session.result as any).sessionId : undefined);
 
+      // Flip the edit-approval policy to "workspace_session" so the agent
+      // can auto-approve workspace and /tmp edits. Without this, the agent
+      // tries to call conn.request_permission and times out after 60s
+      // because vscode's acp.autoApprovePermissions does not cover the
+      // edit-approval flow in the acp.agents integration.
+      //
+      // User-overridable via hermes.editApprovalPolicy:
+      //   - "accept_edits"  → "workspace_session" (auto-allow workspace + /tmp, asks for sensitive)
+      //   - "dont_ask"      → "session" (auto-allow all for this session, except sensitive)
+      //   - "ask"           → "ask" (default, agent will prompt and likely time out)
+      //   - "" or "off"     → skip this call entirely (use hermes default)
+      const policySetting = vscode.workspace.getConfiguration("hermes").get<string>("editApprovalPolicy", "accept_edits");
+      const policyValueMap: Record<string, string> = {
+        accept_edits: "workspace_session",
+        dont_ask: "session",
+        ask: "ask",
+      };
+      const policyValue = policyValueMap[policySetting];
+      if (this.sessionId && policyValue) {
+        try {
+          const setResult = await this.client.setSessionConfigOption(
+            this.sessionId,
+            "edit_approval_policy",
+            policyValue
+          );
+          this.log("standard", `Edit approval policy set: ${policyValue} (${this.dumpJson(setResult)})`);
+        } catch (err: any) {
+          // Non-fatal: log but don't fail the session
+          this.log("minimal", `Failed to set edit approval policy: ${err.message}`);
+        }
+      }
+
+      // Apply the configured model. Per ACP, model selection is a separate
+      // call after the session is created. The session/new request has no
+      // model field, so without this call the session uses hermes's
+      // default model regardless of what `hermes.model` is set to.
+      const configuredModel = vscode.workspace.getConfiguration("hermes").get<string>("model", "");
+      if (this.sessionId && configuredModel) {
+        try {
+          const modelResult = await this.client.setSessionModel(this.sessionId, configuredModel);
+          this.log("standard", `Model set: ${configuredModel} (${this.dumpJson(modelResult)})`);
+          // Record the model for this session so the sessions-list
+          // quickpick can show it. Persisted in globalState.
+          this.sessionModels[this.sessionId] = configuredModel;
+          this.saveSessionModels();
+        } catch (err: any) {
+          // Non-fatal: log but don't fail the session
+          this.log("minimal", `Failed to set model: ${err.message}`);
+        }
+      }
+
       this.postStatus("");
       this.postMessage("system", `Hermes ready -- session ${this.sessionId?.slice(0, 8)}...`);
     } catch (err: any) {
-      this.outputChannel.appendLine(`Connection error: ${err.message}`);
+      this.log("minimal", `Connection error: ${err.message}`);
       this.postError(`Connection failed: ${err.message}`);
     }
   }
@@ -415,18 +623,31 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       }
     });
 
+    // AcpClient emits structured log events. We forward them to our
+    // level-aware log() so they show up in the output channel and
+    // respect the hermes.logLevel setting.
+    this.client.on("log", (entry: { level: "minimal" | "standard" | "debug"; message: string }) => {
+      this.log(entry.level, "[AcpClient] " + entry.message);
+    });
+
     this.client.on("stderr", (text: string) => {
-      // Log stderr to output channel for debugging
-      this.outputChannel.appendLine("[stderr] " + text);
+      // Log stderr to output channel for debugging. stderr is the
+      // agent's own logger output; we treat it as standard-level so
+      // it shows up by default but can be silenced via silent logLevel.
+      this.log("standard", "[stderr] " + text.trimEnd());
     });
 
     this.client.on("error", (err: Error) => {
+      this.log("minimal", `Agent error: ${err.message}`);
       this.postError(`Agent error: ${err.message}`);
     });
 
     this.client.on("exit", (code: number | null) => {
       if (code !== 0 && code !== null) {
+        this.log("minimal", `Hermes exited with code ${code}`);
         this.postError(`Hermes exited with code ${code}`);
+      } else {
+        this.log("debug", `Hermes exited with code ${code}`);
       }
     });
   }
@@ -808,6 +1029,7 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   </div>
   <script>
     const vscode = acquireVsCodeApi();
+    const safetyTimeoutMin = ${JSON.stringify(vscode.workspace.getConfiguration("hermes").get<number>("safetyTimeout", 5))};
     const messagesEl = document.getElementById('messages');
     const statusEl = document.getElementById('status');
     const inputEl = document.getElementById('input');
@@ -859,15 +1081,16 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       if (active) {
         // Safety net: if the server never sends thinking-end AND no
         // assistant-stream chunk arrives (e.g. network drop, server crash),
-        // force the indicator off after 5 minutes so the UI is recoverable.
+        // force the indicator off after the configured timeout so the UI is recoverable.
         // The user can re-prompt after that.
+        const safetyTimeoutMin = ${JSON.stringify(vscode.workspace.getConfiguration("hermes").get<number>("safetyTimeout", 5))};
         if (setThinking._safetyTimer) clearTimeout(setThinking._safetyTimer);
         setThinking._safetyTimer = setTimeout(() => {
           if (thinking) {
             setThinking(false);
-            addMessage('error', 'Turn timed out after 5 min -- UI reset. You can send a new prompt.');
+            addMessage('error', 'Turn timed out after ' + safetyTimeoutMin + ' min -- UI reset. You can send a new prompt.');
           }
-        }, 5 * 60 * 1000);
+        }, safetyTimeoutMin * 60 * 1000);
         const el = document.createElement('div');
         el.className = 'thinking';
         el.id = 'thinking-indicator';
