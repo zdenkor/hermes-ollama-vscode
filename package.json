@@ -40,7 +40,8 @@
         {
           "id": "hermes-chat",
           "name": "Chat",
-          "type": "webview"
+          "type": "webview",
+          "icon": "media/icon.svg"
         }
       ]
     },
@@ -163,6 +164,13 @@
           "type": "boolean",
           "default": false,
           "description": "Register Hermes as a Copilot Chat participant (@hermes)"
+        },
+        "hermes.safetyTimeout": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Safety timeout in minutes. If the server stops responding, the UI resets after this duration."
         }
       }
     },
