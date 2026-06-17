@@ -1,5 +1,8 @@
 # Release Notes
 
+## v0.7.0
+- **Add Marketplace icon** — added `media/icon.png` (128×128) for the VS Code Marketplace listing page. The existing `media/icon.svg` is still used for the in-editor Activity Bar icon.
+
 ## v0.6.9
 - **Auto-resolve Hermes executable path** — the extension now automatically locates `hermes` in your system `PATH` when the setting is left as the default (`"hermes"`).
   - Uses `where hermes` (Windows) or `which hermes` (macOS/Linux) to find the binary.
