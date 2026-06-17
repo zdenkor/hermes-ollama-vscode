@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { AcpClient, AcpNotification } from "./acpClient";
+import { resolveHermesExecutable } from "./utils";
 
 export class HermesChatProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
@@ -10,9 +11,10 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
   private outputChannel: vscode.OutputChannel;
 
   constructor(private context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
-    this.executable = vscode.workspace
+    const configured = vscode.workspace
       .getConfiguration("hermes")
       .get<string>("executable") || "hermes";
+    this.executable = resolveHermesExecutable(configured);
     this.outputChannel = outputChannel;
   }
 

@@ -2,7 +2,7 @@
   "name": "hermes-ollama-vscode",
   "displayName": "Ollama Hermes Agent",
   "description": "Chat with Hermes Agent in VS Code via Ollama. Uses ACP protocol — full agent with tools, memory, and skills.",
-  "version": "0.6.8",
+  "version": "0.6.9",
   "publisher": "Natadel",
   "repository": "https://github.com/zdenkor/hermes-ollama-vscode",
   "license": "MIT",
@@ -125,8 +125,8 @@
       "properties": {
         "hermes.executable": {
           "type": "string",
-          "default": "C:/Users/gin/AppData/Local/hermes/hermes-agent/venv/Scripts/hermes.exe",
-          "description": "Path to the hermes executable"
+          "default": "hermes",
+          "description": "Path to the hermes executable. Leave as 'hermes' to find it in PATH."
         },
         "hermes.defaultCwd": {
           "type": "string",
