@@ -1,5 +1,17 @@
 # Release Notes
 
+## v0.8.6
+- **Edit approval policy now applies to the current session** — Setup Wizard → Edit Approval Policy now sends the new policy to the running session via `session/set_config_option` instead of waiting for a new session. Preserves conversation history, skills, and learned context. The setting is still saved either way, so the policy applies to future new sessions even if the live update fails (e.g. mid-prompt).
+- Notification distinguishes three cases: applied to current session, no live session (next new session), or off mode (hermes default).
+
+## v0.8.5
+- **Setup Wizard → Edit Approval Policy** — new quickpick to change the policy without editing settings.json. Options: `accept_edits` (default), `dont_ask`, `ask` (strict — known to 60s-timeout in vscode's acp.agents integration), `off` (use hermes default). The change took effect only on the next new session until v0.8.6.
+
+## v0.8.4
+- **Reasoning / chain-of-thought streaming in the standalone webview** — when the model emits `reasoning_content` deltas, the extension now renders them in a collapsible "Reasoning" block above the assistant's final answer. Per the ACP spec, the events are delivered as `agent_thought_chunk` updates; the extension subscribes to them and streams the text into a `<details>` element expanded by default, capped at 320px with internal scroll.
+- Works for models that stream reasoning natively (Kimi/Moonshot, DeepSeek, native Claude). Other models (minimax, ollama models without thinking) don't emit reasoning and the block simply doesn't appear — the existing "thinking..." inline indicator still shows during the wait.
+- Each turn gets its own block. The block freezes when the turn ends and stays in the transcript for context.
+
 ## v0.8.3
 - **Log levels** — replaced the dead `hermes.logTraffic` setting with `hermes.logLevel` (`silent` | `minimal` | `standard` | `debug`). Default is `standard` which shows session events without spamming the output channel. Use `debug` to see full JSON-RPC traffic between VS Code and the Hermes agent.
 - **Setup wizard → Set Log Level** — quickpick to change the log level without editing settings.json.

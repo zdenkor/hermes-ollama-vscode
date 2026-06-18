@@ -258,6 +258,11 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         detail: `Current: ${vscode.workspace.getConfiguration("hermes").get<string>("logLevel", "standard")}`,
       },
       {
+        label: "$(shield) Edit Approval Policy",
+        description: "How the agent handles file edits",
+        detail: `Current: ${vscode.workspace.getConfiguration("hermes").get<string>("editApprovalPolicy", "accept_edits")}`,
+      },
+      {
         label: "$(circuit-board) Change Active Model",
         description: "Pick which model Hermes uses right now",
         detail: "Choose from API server, Ollama, or your model list",
@@ -297,6 +302,9 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         break;
       case "$(output) Set Log Level":
         await this.configureLogLevel();
+        break;
+      case "$(shield) Edit Approval Policy":
+        await this.configureEditApproval();
         break;
       case "$(circuit-board) Change Active Model":
         await this.commandChooseModel();
@@ -397,6 +405,124 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       vscode.window.showInformationMessage(`Log level set to: ${selected.id}`);
       // Emit a one-liner at the new level so the user sees the change took effect.
       this.log("minimal", `Log level changed to: ${selected.id}`);
+    }
+  }
+
+  /**
+   * Setup Wizard → Edit Approval Policy.
+   *
+   * Controls how the agent handles file-edit approval requests. With
+   * `accept_edits` (default) the extension sets the session's
+   * edit_approval_policy to `workspace_session` so workspace and /tmp
+   * edits are auto-approved (with sensitive paths still requiring
+   * approval). `dont_ask` is more aggressive. `ask` causes the agent
+   * to wait for a prompt that the vscode acp.agents integration does
+   * not render — leads to a 60s timeout. Empty / off skips the call
+   * and falls back to hermes's default.
+   *
+   * The change only takes effect on the NEXT new session — it is sent
+   * via session/set_config_option after newSession in ensureAgent().
+   */
+  private async configureEditApproval(): Promise<void> {
+    const current = vscode.workspace
+      .getConfiguration("hermes")
+      .get<string>("editApprovalPolicy", "accept_edits");
+
+    const policies: Array<{
+      id: "accept_edits" | "dont_ask" | "ask" | "";
+      label: string;
+      description: string;
+    }> = [
+      {
+        id: "accept_edits",
+        label: "accept_edits (default)",
+        description:
+          "Auto-allow workspace and /tmp edits. Sensitive paths still ask.",
+      },
+      {
+        id: "dont_ask",
+        label: "dont_ask",
+        description:
+          "Auto-allow every edit for this session except sensitive paths.",
+      },
+      {
+        id: "ask",
+        label: "ask (strict)",
+        description:
+          "Prompt before every edit. NOTE: vscode acp.agents doesn't render the prompt, so the agent will time out after 60s. Only use if you understand this.",
+      },
+      {
+        id: "",
+        label: "off (use hermes default)",
+        description: "Don't send session/set_config_option; let hermes pick its own policy.",
+      },
+    ];
+
+    const items = policies.map((p) => ({
+      label: p.label + (p.id === current ? "  $(check)" : ""),
+      description: p.description,
+      id: p.id,
+    }));
+
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: `Current: ${current || "off (hermes default)"}`,
+    });
+    if (selected) {
+      await vscode.workspace
+        .getConfiguration("hermes")
+        .update("editApprovalPolicy", selected.id, true);
+
+      // If a session is currently running, push the new policy to it
+      // immediately. This preserves the session's conversation history,
+      // skills, and learned context — unlike starting a new session.
+      // If the RPC fails (e.g. the session is mid-prompt), the policy
+      // will still be applied to the next new session.
+      const hasLiveSession =
+        this.client?.isRunning() && this.sessionId !== undefined;
+      if (hasLiveSession && selected.id !== "") {
+        const valueMap: Record<string, string> = {
+          accept_edits: "workspace_session",
+          dont_ask: "session",
+          ask: "ask",
+        };
+        const policyValue = valueMap[selected.id];
+        if (policyValue) {
+          try {
+            const setResult = await this.client!.setSessionConfigOption(
+              this.sessionId!,
+              "edit_approval_policy",
+              policyValue
+            );
+            if (setResult.error) {
+              vscode.window.showWarningMessage(
+                `Policy set to ${selected.id} (setting only). Could not apply to current session: ${setResult.error.message}. Will apply on the next new session.`
+              );
+              this.log("minimal", `Failed to apply policy to current session: ${setResult.error.message}`);
+            } else {
+              vscode.window.showInformationMessage(
+                `Edit approval policy: ${selected.id}. Applied to current session.`
+              );
+              this.log("standard", `Edit approval policy applied to current session: ${policyValue}`);
+            }
+          } catch (err: any) {
+            vscode.window.showWarningMessage(
+              `Policy set to ${selected.id} (setting only). Could not apply to current session: ${err.message}. Will apply on the next new session.`
+            );
+            this.log("minimal", `Error applying policy to current session: ${err.message}`);
+          }
+        } else {
+          vscode.window.showInformationMessage(
+            `Edit approval policy set to: ${selected.id}. No live session to apply to.`
+          );
+        }
+      } else {
+        const reason = !hasLiveSession
+          ? "No active session"
+          : "Off mode (heres default applies)";
+        vscode.window.showInformationMessage(
+          `Edit approval policy set to: ${selected.id || "off"}. ${reason} — takes effect on the next new session.`
+        );
+      }
     }
   }
 
@@ -666,6 +792,17 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
         }
         break;
       }
+      case "agent_thought_chunk": {
+        // Stream the model's chain-of-thought / reasoning text into the
+        // webview. Per the ACP spec, the content shape is the same as
+        // agent_message_chunk (a ContentBlock with .text), so we can
+        // reuse the same field.
+        const text = (update.content as any)?.text as string | undefined;
+        if (text) {
+          this.postMessage("thought-stream", text);
+        }
+        break;
+      }
       case "tool_call_start": {
         const name = update.toolName as string;
         const input = update.toolInput as Record<string, unknown>;
@@ -836,6 +973,52 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
     padding: 2px 10px;
     color: color-mix(in srgb, var(--fg) 60%, transparent);
     align-self: flex-start;
+  }
+
+  /* Reasoning / chain-of-thought block. A collapsible <details> element
+     with the model's internal reasoning inside. Visually distinct from
+     the assistant's final answer (dimmed, monospaced, indented). */
+  .msg.thought {
+    align-self: stretch;
+    margin: 4px 0;
+    padding: 0;
+    background: transparent;
+  }
+  .msg.thought .thought-details {
+    background: color-mix(in srgb, var(--accent) 4%, var(--bg));
+    border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+    border-radius: 6px;
+    padding: 6px 10px;
+  }
+  .msg.thought .thought-details > summary {
+    cursor: pointer;
+    font-size: 0.85em;
+    color: color-mix(in srgb, var(--fg) 70%, transparent);
+    user-select: none;
+    list-style: none;
+    /* Show a triangle marker only when collapsed so the block is more
+       compact when open. Native marker is shown via the default styling
+       on <details> elements. */
+  }
+  .msg.thought .thought-details > summary::marker,
+  .msg.thought .thought-details > summary::-webkit-details-marker {
+    color: var(--accent);
+  }
+  .msg.thought .thought-body {
+    margin: 8px 0 2px 0;
+    padding: 6px 8px;
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 4px 4px 0;
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 0.85em;
+    line-height: 1.45;
+    color: color-mix(in srgb, var(--fg) 85%, transparent);
+    white-space: pre-wrap;
+    /* Cap height so very long reasoning scrolls inside the block
+       instead of pushing the whole transcript off-screen. */
+    max-height: 320px;
+    overflow-y: auto;
   }
 
   .msg.error {
@@ -1038,6 +1221,9 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
 
     let thinking = false;
     let currentStreamEl = null;
+    // Element holding the active turn's reasoning / chain-of-thought
+    // <details> block. Reset on each new turn (thinking-start).
+    let currentThoughtEl = null;
     let commandHistory = [];
     let historyIndex = -1;
     let savedInput = '';
@@ -1066,6 +1252,45 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
       messagesEl.appendChild(el);
       scrollBottom();
       return el;
+    }
+
+    /**
+     * Create a new collapsible <details> block for the active turn's
+     * reasoning / chain-of-thought. Open by default so the user sees
+     * every step the model takes. The body is an empty <pre> that
+     * appendThought() fills in.
+     */
+    function addThoughtBlock() {
+      const wrap = document.createElement('div');
+      wrap.className = 'msg thought';
+
+      const details = document.createElement('details');
+      details.open = true;
+      details.className = 'thought-details';
+
+      const summary = document.createElement('summary');
+      summary.textContent = 'Reasoning';
+
+      const body = document.createElement('pre');
+      body.className = 'thought-body';
+
+      details.appendChild(summary);
+      details.appendChild(body);
+      wrap.appendChild(details);
+      messagesEl.appendChild(wrap);
+      scrollBottom();
+      // Return a small object so the caller can reach both elements.
+      return { wrap: wrap, body: body };
+    }
+
+    /**
+     * Append a chunk of text to the active thought block. Renders the
+     * text as-is; model reasoning is usually pre-formatted with
+     * newlines, so we set textContent and let <pre> preserve them.
+     */
+    function appendThought(thought, text) {
+      if (!thought || !thought.body) return;
+      thought.body.textContent += text;
     }
 
     function setStatus(text) {
@@ -1211,12 +1436,25 @@ export class HermesChatProvider implements vscode.WebviewViewProvider {
             }
             currentStreamEl.textContent += msg.content;
             scrollBottom();
+          } else if (msg.kind === 'thought-stream') {
+            // Stream the model's reasoning / chain-of-thought into a
+            // collapsible <details> block. The block is created on the
+            // first thought-stream chunk and reused for subsequent chunks
+            // of the same turn. New turns get a fresh block.
+            if (!currentThoughtEl) {
+              currentThoughtEl = addThoughtBlock();
+            }
+            appendThought(currentThoughtEl, msg.content);
+            scrollBottom();
           } else if (msg.kind === 'thinking-start') {
             setThinking(true);
             currentStreamEl = null;
+            currentThoughtEl = null;
           } else if (msg.kind === 'thinking-end') {
             setThinking(false);
             currentStreamEl = null;
+            // Keep currentThoughtEl — the block stays visible in the
+            // transcript, just frozen. Next thinking-start resets it.
           } else if (msg.kind === 'tool-start') {
             // Switch the indicator to "running <tool>..." but keep the dots
             // animating. setThinking(true) was already called at thinking-start;
